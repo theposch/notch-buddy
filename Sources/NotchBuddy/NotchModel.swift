@@ -153,13 +153,14 @@ final class NotchModel {
     }
 
     static let rowHeight: CGFloat = 48
-    static let headerHeight: CGFloat = 30
     static let maxRows = 8
 
     var openSize: CGSize {
         let rows = min(sessions.count, Self.maxRows)
-        let body = welcome ? 128 : Self.headerHeight + (rows == 0 ? 80 : CGFloat(rows) * Self.rowHeight + 10)
-        return CGSize(width: NotchGeometry.openSize.width, height: geometry.barHeight + body)
+        let body = welcome ? 128 : (rows == 0 ? 80 : CGFloat(rows) * Self.rowHeight + 14)
+        // Wide enough that usage left and the buttons fit either side of the camera.
+        let width = max(NotchGeometry.openSize.width, geometry.cameraWidth + 2 * 175)
+        return CGSize(width: width, height: geometry.barHeight + body)
     }
 
     // MARK: Claude Code events

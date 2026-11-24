@@ -42,6 +42,12 @@ struct NotchView: View {
                 .frame(width: size.width, height: size.height - g.barHeight, alignment: .top)
                 .padding(.top, g.barHeight)
                 .transition(.opacity)
+
+                if !model.welcome {
+                    topBar
+                        .frame(width: size.width, height: g.barHeight)
+                        .transition(.opacity)
+                }
             }
 
             HStack(spacing: 0) {
@@ -83,28 +89,27 @@ struct NotchView: View {
     // MARK: Open
 
     private var panel: some View {
-        VStack(spacing: 0) {
-            header
-            rows
-        }
-        .padding(.horizontal, 16)
+        rows
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
     }
 
-    /// Usage left on the left; settings and Quit on the right.
-    private var header: some View {
-        HStack(spacing: 14) {
+    /// The menu bar strip, either side of the camera: usage left, then settings and Quit.
+    private var topBar: some View {
+        HStack(spacing: 6) {
             if let left = model.usageLeft, let resets = model.usage?.resets {
                 Text("\(left)% left")
                     .foregroundStyle(Self.usageColor(left, normal: .white))
                 Text("resets \(resets.formatted(date: .omitted, time: .shortened))")
                     .foregroundStyle(Self.dim)
             }
-            Spacer()
+            Spacer(minLength: model.geometry.cameraWidth + 16)
             HeaderButton(symbol: "gearshape", help: "Settings", action: actions.settings)
             HeaderButton(symbol: "power", help: "Quit Notch Buddy", action: actions.quit)
         }
         .font(.system(size: 12, weight: .medium))
-        .frame(height: NotchModel.headerHeight)
+        .lineLimit(1)
+        .padding(.horizontal, 18)
     }
 
     @ViewBuilder private var rows: some View {
