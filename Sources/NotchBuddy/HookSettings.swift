@@ -1,7 +1,8 @@
 import Foundation
 
-/// Our entries in Claude Code's settings. Everything else in the file is left alone,
-/// including other apps' hooks.
+/// Our entries in Claude Code's settings: one hook per event, and our status line in front of
+/// whatever status line was there (kept inside our command, so Disconnect can put it back).
+/// Everything else in the file is left alone, including other apps' hooks.
 enum HookSettings {
     static let events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
                          "Notification", "Stop", "SessionEnd"]
@@ -14,6 +15,37 @@ enum HookSettings {
 
     static func isOurs(_ hook: Any) -> Bool {
         ((hook as? [String: Any])?["command"] as? String)?.hasSuffix(ending) ?? false
+    }
+
+    // MARK: Status line
+
+    static let statusWord = " statusline"
+
+    /// Our status line command: the app, then the earlier status line setting packed as base64.
+    static func statusCommand(hook: String, previous: [String: Any]?) -> String {
+        var command = String(hook.dropLast(" hook".count)) + statusWord
+        if let previous, let data = try? JSONSerialization.data(withJSONObject: previous, options: [.sortedKeys]) {
+            command += " " + data.base64EncodedString()
+        }
+        return command
+    }
+
+    /// The part of our status line command before the packed setting.
+    static func ourStatusPrefix(_ settings: [String: Any]) -> String? {
+        guard let command = (settings["statusLine"] as? [String: Any])?["command"] as? String,
+              let range = command.range(of: "/Contents/MacOS/NotchBuddy'" + statusWord) else { return nil }
+        return String(command[..<range.upperBound])
+    }
+
+    /// The status line setting we stood in front of, read back from our command.
+    static func previousStatusLine(_ command: String) -> [String: Any]? {
+        guard let packed = command.components(separatedBy: statusWord + " ").last, packed != command else { return nil }
+        return unpack(packed)
+    }
+
+    static func unpack(_ packed: String) -> [String: Any]? {
+        guard let data = Data(base64Encoded: packed) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     static func contains(_ settings: [String: Any]) -> Bool {
@@ -29,6 +61,7 @@ enum HookSettings {
     /// Our entries only, as "event command timeout" lines.
     static func ours(in settings: [String: Any]) -> Set<String> {
         var found = Set<String>()
+        if let status = ourStatusPrefix(settings) { found.insert("statusLine \(status)") }
         for (event, groups) in settings["hooks"] as? [String: Any] ?? [:] {
             for group in groups as? [[String: Any]] ?? [] {
                 for hook in group["hooks"] as? [[String: Any]] ?? [] where isOurs(hook) {
@@ -41,8 +74,14 @@ enum HookSettings {
 
     /// The settings with our entries taken out, and whether there were any.
     static func removing(from settings: [String: Any]) -> (settings: [String: Any], changed: Bool) {
-        guard var hooks = settings["hooks"] as? [String: Any] else { return (settings, false) }
+        var result = settings
         var changed = false
+        if ourStatusPrefix(settings) != nil {
+            let command = (settings["statusLine"] as? [String: Any])?["command"] as? String ?? ""
+            result["statusLine"] = previousStatusLine(command)
+            changed = true
+        }
+        guard var hooks = settings["hooks"] as? [String: Any] else { return (result, changed) }
         for (event, value) in hooks {
             guard let groups = value as? [Any] else { continue }
             var touched = false
@@ -61,7 +100,6 @@ enum HookSettings {
             }
         }
         guard changed else { return (settings, false) }
-        var result = settings
         result["hooks"] = hooks.isEmpty ? nil : hooks
         return (result, true)
     }
@@ -78,6 +116,11 @@ enum HookSettings {
             hooks[event] = groups
         }
         result["hooks"] = hooks
+        // Stand in front of the status line, keeping its other options (like padding).
+        let previous = result["statusLine"] as? [String: Any]
+        var status = previous ?? ["type": "command"]
+        status["command"] = statusCommand(hook: command, previous: previous)
+        result["statusLine"] = status
         return result
     }
 }
@@ -108,6 +151,11 @@ struct HookFile {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try new.write(to: file, options: .atomic)
         try new.write(to: writtenURL, options: .atomic)
+    }
+
+    /// True when Claude's settings have our entries.
+    var isConnected: Bool {
+        (try? Data(contentsOf: file)).flatMap { try? Self.parse($0) }.map(HookSettings.contains) ?? false
     }
 
     /// Updates our entries if they are there but out of date. Touches nothing else.

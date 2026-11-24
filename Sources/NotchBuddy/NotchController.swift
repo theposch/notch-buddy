@@ -38,9 +38,14 @@ final class NotchController {
     private var watchers: [Any] = []
     private var listener: EventListener?
     private var shrink: Task<Void, Never>?
+    private var updates: Task<Void, Never>?
+    private let settings = SettingsWindow()
+    /// The welcome stays open until the mouse has been over it and left again.
+    private var pinned = false
+    private var mouseVisited = false
 
     init() {
-        let host = NotchHostingView(rootView: NotchView(model: model, menu: menu))
+        let host = NotchHostingView(rootView: NotchView(model: model, actions: actions))
         host.sizingOptions = []
         panel.contentView = host
         place()
@@ -75,6 +80,21 @@ final class NotchController {
                 withAnimation { model.replyGone(reply) }
             }
         })
+
+        updates = Updater.watch { model.update = $0 }
+        firstLaunch()
+    }
+
+    /// The very first time: open at login, and say hello unless Claude Code is already connected.
+    private func firstLaunch() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "launchedBefore") else { return }
+        defaults.set(true, forKey: "launchedBefore")
+        LoginItem.set(true)
+        guard !Connection().isConnected else { return }
+        model.welcome = true
+        pinned = true
+        setOpen(true, animated: true)
     }
 
     private func place() {
@@ -89,6 +109,11 @@ final class NotchController {
         let size = model.isOpen ? model.openSize : model.closedSize
         // Grow the area by a point so the very top row of pixels counts too.
         let inside = topCentre(size).insetBy(dx: 0, dy: -1).contains(NSEvent.mouseLocation)
+        if pinned {
+            if inside { mouseVisited = true }
+            if !mouseVisited || inside { return }
+            pinned = false
+        }
         if inside != model.isOpen { setOpen(inside, animated: true) }
     }
 
@@ -135,39 +160,31 @@ final class NotchController {
                width: size.width, height: size.height)
     }
 
-    // MARK: Right-click menu
+    // MARK: Buttons and menu
 
-    private var menu: NotchMenu {
-        NotchMenu(
-            installHooks: { Self.changeHooks(install: true) },
-            removeHooks: { Self.changeHooks(install: false) }
+    private var actions: NotchActions {
+        NotchActions(
+            settings: { [weak self] in
+                guard let self else { return }
+                self.settings.show(model: self.model)
+            },
+            quit: { NSApp.terminate(nil) },
+            connect: { [weak self] in self?.connect() }
         )
     }
 
-    private static func changeHooks(install: Bool) {
-        let alert = NSAlert()
-        do {
-            let file = HookFile()
-            if install {
-                try file.install(command: HookSettings.command(for: Bundle.main.executablePath ?? ""))
-                alert.messageText = "Claude hooks installed"
-                alert.informativeText = "New Claude Code sessions will show up in the notch. A backup of your settings was saved."
-            } else {
-                try file.remove()
-                alert.messageText = "Claude hooks removed"
-                alert.informativeText = "Notch Buddy's entries were taken out of Claude's settings. Everything else is as it was."
-            }
-        } catch {
-            alert.messageText = "Couldn't change Claude's settings"
-            alert.informativeText = error.localizedDescription
+    /// The welcome's one button.
+    private func connect() {
+        if let problem = Connection().connect() {
+            let alert = NSAlert()
+            alert.messageText = "Couldn't connect to Claude Code"
+            alert.informativeText = problem
+            NSApp.activate()
+            alert.runModal()
+            return
         }
-        NSApp.activate()
-        alert.runModal()
+        withAnimation { model.welcome = false }
+        pinned = false
+        mouseMoved()
     }
-}
-
-/// The actions behind the notch's right-click menu.
-struct NotchMenu {
-    var installHooks: () -> Void
-    var removeHooks: () -> Void
 }

@@ -1,7 +1,6 @@
 import AppKit
 
-/// The user's choices, kept in UserDefaults. There's no settings window yet (stage 4);
-/// until then they can be changed with `defaults write <app id> <key> <value>`.
+/// The user's choices, kept in UserDefaults and changed in the settings window.
 enum Prefs {
     static let clay = "#D97757"
     /// A few colours that sit well together on black.
@@ -14,6 +13,7 @@ enum Prefs {
             "soundNeedsYou": true,
             "soundFinished": false,
             "hideFinished": false,       // false: finished rows stay until clicked
+            "rightSide": RightSide.auto.rawValue,
         ])
     }
 
@@ -25,6 +25,23 @@ enum Prefs {
     static var soundNeedsYou: Bool { UserDefaults.standard.bool(forKey: "soundNeedsYou") }
     static var soundFinished: Bool { UserDefaults.standard.bool(forKey: "soundFinished") }
     static var hideFinished: Bool { UserDefaults.standard.bool(forKey: "hideFinished") }
+    static var rightSide: RightSide {
+        RightSide(rawValue: UserDefaults.standard.string(forKey: "rightSide") ?? "") ?? .auto
+    }
+
+    /// What the closed notch shows on the right.
+    enum RightSide: String, CaseIterable {
+        case auto, word, sessions, usage
+
+        var title: String {
+            switch self {
+            case .auto: "Auto"
+            case .word: "Status word"
+            case .sessions: "Sessions"
+            case .usage: "Usage left"
+            }
+        }
+    }
 
     /// A colour for a new session: one not in use yet when possible.
     static func pickColor(avoiding used: [String]) -> String {

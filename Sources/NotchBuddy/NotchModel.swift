@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import SwiftUI
 
 struct Session: Identifiable {
     enum State { case ready, working, waiting, done }
@@ -44,12 +45,41 @@ final class NotchModel {
     private(set) var sessions: [Session] = []
     /// The status word Clawd's page last told us ("Pondering…", "Needs you", …).
     var clawdWord = ""
+    /// Usage left in the 5-hour window, from Claude's status line.
+    private(set) var usage = Usage.load()
+    /// When we last heard from Claude Code at all.
+    private(set) var lastHeard: Date?
+    /// First launch: the notch shows a welcome instead of rows.
+    var welcome = false
+    /// A newer version on the downloads page, if there is one.
+    var update: Updater.Release?
+    /// Goes up whenever a setting changes, so everything that reads one redraws.
+    private var prefs = 0
+    /// Auto mode fades between the status word and usage left.
+    private var autoShowsUsage = false
     private var celebrating = false
     @ObservationIgnored private var celebration: Task<Void, Never>?
+    @ObservationIgnored private var exampleRun: Task<Void, Never>?
+    @ObservationIgnored private var timers: [Any] = []
     /// Helpers waiting for Allow or Deny, by session.
     @ObservationIgnored private var replies: [String: Reply] = [:]
     /// Off in tests.
     @ObservationIgnored var soundsOn = true
+
+    init() {
+        timers.append(NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.prefs += 1 }
+        })
+        timers.append(Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(6))
+                guard let self else { return }
+                withAnimation(.easeInOut(duration: 0.4)) { self.autoShowsUsage.toggle() }
+            }
+        })
+    }
 
     /// Rows: "needs you" first, then newest.
     var rows: [Session] {
@@ -64,8 +94,13 @@ final class NotchModel {
     }
 
     func color(of session: Session) -> String {
-        Prefs.clawdColor == Prefs.random ? session.color : Prefs.clawdColor
+        _ = prefs
+        return Prefs.clawdColor == Prefs.random ? session.color : Prefs.clawdColor
     }
+
+    var busyCount: Int { sessions.filter { $0.state == .working || $0.state == .waiting }.count }
+
+    var usageLeft: Int? { usage?.left() }
 
     // MARK: What Clawd and the wings show
 
@@ -76,15 +111,33 @@ final class NotchModel {
     }
 
     var clawdColor: String {
-        lead.map(color(of:)) ?? (Prefs.clawdColor == Prefs.random ? Prefs.clay : Prefs.clawdColor)
+        _ = prefs
+        return lead.map(color(of:)) ?? (Prefs.clawdColor == Prefs.random ? Prefs.clay : Prefs.clawdColor)
     }
 
-    /// Right wing: Clawd's word while working, otherwise how many sessions are busy.
+    var rightSide: Prefs.RightSide { _ = prefs; return Prefs.rightSide }
+
+    /// The right wing, following the "right side" setting.
     var rightText: String? {
-        if clawdMode == "working", !clawdWord.isEmpty { return clawdWord }
-        let busy = sessions.filter { $0.state == .working || $0.state == .waiting }.count
-        return busy > 0 ? "\(busy)" : nil
+        let word = clawdWord.isEmpty ? nil : clawdWord
+        let usageText = usageLeft.map { "\($0)%" }
+        switch rightSide {
+        case .word: return word
+        case .sessions: return busyCount > 0 ? "\(busyCount)" : nil
+        case .usage: return usageText
+        case .auto:
+            if clawdMode == "waiting" { return "Needs you" }
+            guard let word else { return usageText }
+            let counted = busyCount > 1 ? "\(word) · \(busyCount)" : word
+            return autoShowsUsage ? usageText ?? counted : counted
+        }
     }
+
+    /// True when the right wing is showing usage left (it's coloured by how much is left).
+    var rightIsUsage: Bool { rightText != nil && rightText == usageLeft.map { "\($0)%" } }
+
+    /// The "Sessions" option spins while any session is working.
+    var showsSpinner: Bool { rightSide == .sessions && sessions.contains { $0.state == .working } }
 
     static let wingFont = NSFont.systemFont(ofSize: 13, weight: .semibold)
 
@@ -92,7 +145,7 @@ final class NotchModel {
     var wingWidth: CGFloat {
         guard let text = rightText else { return NotchGeometry.wing }
         let width = (text as NSString).size(withAttributes: [.font: Self.wingFont]).width
-        return max(NotchGeometry.wing, ceil(width) + 20)
+        return max(NotchGeometry.wing, ceil(width) + 20 + (showsSpinner ? 18 : 0))
     }
 
     var closedSize: CGSize {
@@ -100,11 +153,12 @@ final class NotchModel {
     }
 
     static let rowHeight: CGFloat = 48
+    static let headerHeight: CGFloat = 30
     static let maxRows = 8
 
     var openSize: CGSize {
         let rows = min(sessions.count, Self.maxRows)
-        let body = rows == 0 ? 108 : CGFloat(rows) * Self.rowHeight + 16
+        let body = welcome ? 128 : Self.headerHeight + (rows == 0 ? 80 : CGFloat(rows) * Self.rowHeight + 10)
         return CGSize(width: NotchGeometry.openSize.width, height: geometry.barHeight + body)
     }
 
@@ -113,8 +167,15 @@ final class NotchModel {
     /// One event from the helper. `reply` is set when the helper waits for Allow or Deny.
     func handle(_ data: Data, reply: Reply? = nil) {
         guard let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let id = event["session_id"] as? String,
               let name = event["hook_event_name"] as? String else { reply?.cancel(); return }
+        lastHeard = Date()
+        if name == Usage.event, let used = event["used_percentage"] as? Double,
+           let resets = event["resets_at"] as? Double {
+            usage = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
+            usage?.save()
+            return
+        }
+        guard let id = event["session_id"] as? String, id != Self.exampleID else { reply?.cancel(); return }
         let folder = (event["cwd"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Claude"
         let tool = event["tool_name"] as? String
 
@@ -163,15 +224,48 @@ final class NotchModel {
         session.summary = next == .waiting ? summary : nil
         if let reply { replies[id] = reply }
         session.canAnswer = replies[id] != nil
+        store(session, was: was)
+    }
 
-        if next == .waiting, was != .waiting, soundsOn, Prefs.soundNeedsYou { Prefs.play("Ping") }
-        if next == .done, was != .done {
+    /// Saves a session's new state, with the sound and celebration that go with it.
+    private func store(_ session: Session, was: Session.State?) {
+        if session.state == .waiting, was != .waiting, soundsOn, Prefs.soundNeedsYou { Prefs.play("Ping") }
+        if session.state == .done, was != .done {
             celebrate()
             if soundsOn, Prefs.soundFinished { Prefs.play("Glass") }
-            if Prefs.hideFinished { sessions.removeAll { $0.id == id }; return }
+            if Prefs.hideFinished { sessions.removeAll { $0.id == session.id }; return }
         }
-        if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i] = session }
+        if let i = sessions.firstIndex(where: { $0.id == session.id }) { sessions[i] = session }
         else { sessions.append(session) }
+    }
+
+    // MARK: The example
+
+    static let exampleID = "notch-buddy-example"
+
+    /// A pretend session that works, needs you, then finishes (about 6 seconds),
+    /// so a changed setting shows in the real notch. Real sessions are never touched.
+    func playExample() {
+        exampleRun?.cancel()
+        exampleRun = Task { [weak self] in
+            let steps: [(Session.State, String?)] = [(.working, nil), (.waiting, "Run: npm test"), (.done, nil)]
+            for (state, summary) in steps {
+                self?.showExample(state, summary: summary)
+                try? await Task.sleep(for: .seconds(2))
+                if Task.isCancelled { return }
+            }
+            withAnimation { self?.sessions.removeAll { $0.id == Self.exampleID } }
+        }
+    }
+
+    private func showExample(_ state: Session.State, summary: String?) {
+        let current = sessions.first { $0.id == Self.exampleID }
+        var example = current ?? Session(id: Self.exampleID, folder: "Example", state: .ready,
+                                         color: Prefs.pickColor(avoiding: sessions.map(\.color)))
+        example.state = state
+        example.summary = summary
+        example.changed = Date()
+        withAnimation(.spring(duration: 0.32, bounce: 0.18)) { store(example, was: current?.state) }
     }
 
     /// Allow or Deny, clicked in the notch.
@@ -199,6 +293,7 @@ final class NotchModel {
 
     /// Clicking a row: go to its conversation. A finished row is cleared too.
     func open(_ session: Session) {
+        guard session.id != Self.exampleID else { return }
         session.place.go()
         if session.state == .done { sessions.removeAll { $0.id == session.id } }
     }

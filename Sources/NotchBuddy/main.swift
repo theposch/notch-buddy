@@ -1,8 +1,10 @@
 import AppKit
 
-// Claude Code runs this same program with "hook": pass the event on and quit.
-if CommandLine.arguments.dropFirst().first == "hook" {
-    HookHelper.run()
+// Claude Code runs this same program with "hook" for events and "statusline" for its status line.
+switch CommandLine.arguments.dropFirst().first {
+case "hook": HookHelper.run()
+case "statusline": StatusLine.run(previous: CommandLine.arguments.dropFirst(2).first)
+default: break
 }
 
 // Otherwise Notch Buddy lives in the notch only: no Dock icon, no app menu.
