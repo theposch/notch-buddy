@@ -3,7 +3,7 @@ import Foundation
 /// Our entries in Claude Code's settings. Everything else in the file is left alone,
 /// including other apps' hooks.
 enum HookSettings {
-    static let events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+    static let events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
                          "Notification", "Stop", "SessionEnd"]
     /// Every command we add ends like this, which is how we find ours again.
     static let ending = "/Contents/MacOS/NotchBuddy' hook"
@@ -18,6 +18,25 @@ enum HookSettings {
 
     static func contains(_ settings: [String: Any]) -> Bool {
         removing(from: settings).changed
+    }
+
+    /// True when our entries are there but differ from what this version would write
+    /// (an older version, or the app has moved).
+    static func isOutdated(_ settings: [String: Any], command: String) -> Bool {
+        contains(settings) && ours(in: settings) != ours(in: adding(to: [:], command: command))
+    }
+
+    /// Our entries only, as "event command timeout" lines.
+    static func ours(in settings: [String: Any]) -> Set<String> {
+        var found = Set<String>()
+        for (event, groups) in settings["hooks"] as? [String: Any] ?? [:] {
+            for group in groups as? [[String: Any]] ?? [] {
+                for hook in group["hooks"] as? [[String: Any]] ?? [] where isOurs(hook) {
+                    found.insert("\(event) \(hook["command"] ?? "") \(hook["timeout"] ?? "")")
+                }
+            }
+        }
+        return found
     }
 
     /// The settings with our entries taken out, and whether there were any.
@@ -53,7 +72,9 @@ enum HookSettings {
         var hooks = result["hooks"] as? [String: Any] ?? [:]
         for event in events {
             var groups = hooks[event] as? [Any] ?? []
-            groups.append(["hooks": [["type": "command", "command": command, "timeout": 5]]])
+            // Only a permission request waits for an answer; everything else is over in a moment.
+            let timeout = event == "PermissionRequest" ? Permission.hookTimeout : 5
+            groups.append(["hooks": [["type": "command", "command": command, "timeout": timeout]]])
             hooks[event] = groups
         }
         result["hooks"] = hooks
@@ -87,6 +108,14 @@ struct HookFile {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try new.write(to: file, options: .atomic)
         try new.write(to: writtenURL, options: .atomic)
+    }
+
+    /// Updates our entries if they are there but out of date. Touches nothing else.
+    func refresh(command: String) throws {
+        guard command.hasSuffix(HookSettings.ending),   // only from the installed app, never a test build
+              let current = try? Data(contentsOf: file),
+              HookSettings.isOutdated(try Self.parse(current), command: command) else { return }
+        try install(command: command)
     }
 
     func remove() throws {

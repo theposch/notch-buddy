@@ -40,7 +40,7 @@ struct NotchView: View {
             HStack(spacing: 0) {
                 // Clawd in the left wing. On the MacBook he sits against the camera;
                 // on other screens, at the outer edge.
-                ClawdView(mode: model.clawdMode) { word in
+                ClawdView(mode: model.clawdMode, color: model.clawdColor) { word in
                     withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.clawdWord = word }
                 }
                 .frame(width: 48, height: 31)
@@ -70,38 +70,72 @@ struct NotchView: View {
                 .foregroundStyle(Self.dim)
                 .frame(maxHeight: .infinity)
         } else {
-            VStack(spacing: 0) {
-                ForEach(model.sessions.prefix(NotchModel.maxRows)) { session in
-                    SessionRow(session: session)
-                        .onTapGesture { withAnimation { model.dismiss(session) } }
+            // Redraw now and then so "2m ago" keeps counting.
+            TimelineView(.periodic(from: .now, by: 30)) { time in
+                VStack(spacing: 0) {
+                    ForEach(model.rows.prefix(NotchModel.maxRows)) { session in
+                        SessionRow(session: session, color: model.color(of: session), now: time.date) { allow in
+                            withAnimation { model.answer(session, allow: allow) }
+                        }
+                        .onTapGesture { withAnimation { model.open(session) } }
+                    }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.top, 6)
         }
     }
 }
 
+/// Clawd, project name, status and how long ago it changed.
+/// When Claude is asking for permission: what it wants to do, with Allow and Deny.
 struct SessionRow: View {
     let session: Session
+    let color: String
+    let now: Date
+    let answer: (_ allow: Bool) -> Void
 
     var body: some View {
-        HStack {
-            Text(session.folder)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            Spacer()
-            Text(label)
+        HStack(spacing: 10) {
+            ClawdView(mode: session.clawdMode, color: color)
+                .frame(width: 40, height: 26)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.folder)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Text(session.summary ?? label)
+                        .foregroundStyle(tint)
+                    if session.summary == nil {
+                        Text(Self.ago(session.changed, now: now))
+                            .foregroundStyle(NotchView.dim)
+                    }
+                }
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(color)
+            }
+            .lineLimit(1)
+            .truncationMode(.tail)
+
+            Spacer(minLength: 8)
+
+            if session.canAnswer {
+                Button("Deny") { answer(false) }
+                    .buttonStyle(Pill(fill: Color(white: 0.2), text: .white))
+                Button("Allow") { answer(true) }
+                    .buttonStyle(Pill(fill: NotchView.clay, text: .black))
+            } else if session.summary != nil {
+                Text(Self.ago(session.changed, now: now))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(NotchView.dim)
+            }
         }
         .frame(height: NotchModel.rowHeight)
         .contentShape(Rectangle())
         .overlay(alignment: .top) {
             Rectangle().fill(Color(white: 0.12)).frame(height: 1)
         }
-        .help(session.state == .done ? "Click to clear" : "")
+        .help(session.state == .done ? "Click to open and clear" : "Click to open")
     }
 
     private var label: String {
@@ -113,12 +147,37 @@ struct SessionRow: View {
         }
     }
 
-    private var color: Color {
+    private var tint: Color {
         switch session.state {
         case .ready: NotchView.dim
         case .working: NotchView.clay
         case .waiting: NotchView.amber
         case .done: NotchView.green
         }
+    }
+
+    /// "now", "4m", "2h", "3d"
+    static func ago(_ date: Date, now: Date) -> String {
+        let minutes = Int(now.timeIntervalSince(date) / 60)
+        if minutes < 1 { return "now" }
+        if minutes < 60 { return "\(minutes)m" }
+        if minutes < 60 * 24 { return "\(minutes / 60)h" }
+        return "\(minutes / (60 * 24))d"
+    }
+}
+
+/// A small rounded button for Allow and Deny.
+struct Pill: ButtonStyle {
+    let fill: Color
+    let text: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(text)
+            .padding(.horizontal, 12)
+            .frame(height: 24)
+            .background(Capsule().fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
+            .contentShape(Capsule())
     }
 }

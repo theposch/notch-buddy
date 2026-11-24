@@ -4,20 +4,28 @@ import WebKit
 /// Clawd, drawn by our own clawd.html page in a see-through web view.
 struct ClawdView: NSViewRepresentable {
     let mode: String
-    let onWord: (String) -> Void
+    var color = Prefs.clay
+    var onWord: ((String) -> Void)?
 
     func makeNSView(context: Context) -> ClawdWebView { ClawdWebView() }
 
     func updateNSView(_ view: ClawdWebView, context: Context) {
         view.onWord = onWord
-        view.show(mode)
+        view.show(mode, color: color)
+    }
+
+    /// A row went away: stop its Clawd so the page doesn't keep running.
+    static func dismantleNSView(_ view: ClawdWebView, coordinator: ()) {
+        view.stopLoading()
+        view.configuration.userContentController.removeAllScriptMessageHandlers()
+        view.loadHTMLString("", baseURL: nil)
     }
 }
 
 final class ClawdWebView: WKWebView, WKNavigationDelegate {
-    static let color = "#D97757"
     var onWord: ((String) -> Void)?
     private var mode = "life"
+    private var color = Prefs.clay
     private var loaded = false
 
     init() {
@@ -36,16 +44,22 @@ final class ClawdWebView: WKWebView, WKNavigationDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// working, waiting, done, life, …
-    func show(_ newMode: String) {
-        guard newMode != mode else { return }
+    /// mode: working, waiting, done, life, …  color: "#D97757"
+    func show(_ newMode: String, color newColor: String) {
+        guard newMode != mode || newColor != color else { return }
         mode = newMode
-        if loaded { evaluateJavaScript("setMode('\(mode)')") }
+        color = newColor
+        if loaded { tellPage() }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard !loaded else { return }
         loaded = true
-        evaluateJavaScript("setColor('\(Self.color)'); setMode('\(mode)');")
+        tellPage()
+    }
+
+    private func tellPage() {
+        evaluateJavaScript("setColor('\(color)'); setMode('\(mode)');")
     }
 
     // Clawd is just a picture: mouse clicks go to the notch behind him.

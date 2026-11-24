@@ -66,11 +66,15 @@ final class NotchController {
 
         // Events from Claude Code, passed on by the hook helper.
         let model = model
-        listener = EventListener { data in
+        listener = EventListener(onEvent: { data, reply in
             Task { @MainActor in
-                withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.handle(data) }
+                withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.handle(data, reply: reply) }
             }
-        }
+        }, onGone: { reply in
+            Task { @MainActor in
+                withAnimation { model.replyGone(reply) }
+            }
+        })
     }
 
     private func place() {

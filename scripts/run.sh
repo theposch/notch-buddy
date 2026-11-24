@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-NAME="Notch Buddy Next"
+NAME="Notch Buddy"
 APP="$HOME/Applications/$NAME.app"
 
 swift build -c release
@@ -26,13 +26,14 @@ cat > "$APP/Contents/Info.plist" <<EOF
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>$NAME</string>
   <key>CFBundleDisplayName</key><string>$NAME</string>
-  <key>CFBundleIdentifier</key><string>local.notchbuddy.next</string>
+  <key>CFBundleIdentifier</key><string>local.notchbuddy</string>
   <key>CFBundleExecutable</key><string>NotchBuddy</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  <key>NSAppleEventsUsageDescription</key><string>Clicking a session brings its Terminal tab forward.</string>
 </dict></plist>
 EOF
 
