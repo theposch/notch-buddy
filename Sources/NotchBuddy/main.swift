@@ -1,6 +1,11 @@
 import AppKit
 
-// Notch Buddy lives in the notch only: no Dock icon, no app menu.
+// Claude Code runs this same program with "hook": pass the event on and quit.
+if CommandLine.arguments.dropFirst().first == "hook" {
+    HookHelper.run()
+}
+
+// Otherwise Notch Buddy lives in the notch only: no Dock icon, no app menu.
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

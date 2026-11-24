@@ -1,13 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// What the notch view shows. The controller changes it; the view follows.
-@MainActor @Observable
-final class NotchModel {
-    var geometry = NotchGeometry()
-    var isOpen = false
-}
-
 /// A see-through window over the top centre of the screen: notch-sized when closed,
 /// panel-sized when open. The black notch shape is drawn inside it.
 final class NotchPanel: NSPanel {
@@ -30,19 +23,28 @@ final class NotchPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-/// Puts the notch on the right screen and opens it while the mouse is over it.
+/// Lets the first click on a row count, even though our panel never becomes the active window.
+final class NotchHostingView: NSHostingView<NotchView> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// Puts the notch on the right screen, opens it while the mouse is over it,
+/// and feeds it Claude Code events.
 @MainActor
 final class NotchController {
     private let model = NotchModel()
     private let panel = NotchPanel()
     private var screenFrame = NSRect.zero
     private var watchers: [Any] = []
+    private var listener: EventListener?
+    private var shrink: Task<Void, Never>?
 
     init() {
-        let host = NSHostingView(rootView: NotchView(model: model))
+        let host = NotchHostingView(rootView: NotchView(model: model, menu: menu))
         host.sizingOptions = []
         panel.contentView = host
         place()
+        followSize()
 
         // Screens plugged in, unplugged or rearranged.
         watchers.append(NotificationCenter.default.addObserver(
@@ -61,6 +63,14 @@ final class NotchController {
             MainActor.assumeIsolated { self?.mouseMoved() }
             return event
         }) { watchers.append(local) }
+
+        // Events from Claude Code, passed on by the hook helper.
+        let model = model
+        listener = EventListener { data in
+            Task { @MainActor in
+                withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.handle(data) }
+            }
+        }
     }
 
     private func place() {
@@ -72,7 +82,7 @@ final class NotchController {
     }
 
     private func mouseMoved() {
-        let size = model.isOpen ? NotchGeometry.openSize : model.geometry.closedSize
+        let size = model.isOpen ? model.openSize : model.closedSize
         // Grow the area by a point so the very top row of pixels counts too.
         let inside = topCentre(size).insetBy(dx: 0, dy: -1).contains(NSEvent.mouseLocation)
         if inside != model.isOpen { setOpen(inside, animated: true) }
@@ -80,17 +90,38 @@ final class NotchController {
 
     private func setOpen(_ open: Bool, animated: Bool) {
         panel.ignoresMouseEvents = !open
-        // Open: make room for the panel first. Closed: shrink back to just the notch
-        // once the animation ends, so nothing beside it can catch a click.
-        if open { panel.setFrame(topCentre(NotchGeometry.openSize), display: true) }
         withAnimation(animated ? .spring(duration: 0.32, bounce: 0.18) : nil) {
             model.isOpen = open
         }
-        guard !open else { return }
-        Task { @MainActor [weak self] in
+        fit(animated: animated)
+    }
+
+    /// Whenever the notch's size changes (new rows, a longer word), resize the window to match.
+    private func followSize() {
+        withObservationTracking {
+            _ = model.closedSize
+            _ = model.openSize
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.fit(animated: true)
+                self?.mouseMoved()   // the panel may have shrunk out from under the mouse
+                self?.followSize()
+            }
+        }
+    }
+
+    /// Grow the window at once; shrink it only after the animation has played,
+    /// so nothing beside the notch can catch a click.
+    private func fit(animated: Bool) {
+        let target = model.isOpen ? model.openSize : model.closedSize
+        let now = panel.frame.size
+        panel.setFrame(topCentre(CGSize(width: max(now.width, target.width),
+                                        height: max(now.height, target.height))), display: true)
+        shrink?.cancel()
+        shrink = Task { [weak self] in
             if animated { try? await Task.sleep(for: .milliseconds(450)) }
-            guard let self, !self.model.isOpen else { return }
-            self.panel.setFrame(self.topCentre(self.model.geometry.closedSize), display: true)
+            guard let self, !Task.isCancelled else { return }
+            self.panel.setFrame(self.topCentre(target), display: true)
         }
     }
 
@@ -99,4 +130,40 @@ final class NotchController {
         NSRect(x: screenFrame.midX - size.width / 2, y: screenFrame.maxY - size.height,
                width: size.width, height: size.height)
     }
+
+    // MARK: Right-click menu
+
+    private var menu: NotchMenu {
+        NotchMenu(
+            installHooks: { Self.changeHooks(install: true) },
+            removeHooks: { Self.changeHooks(install: false) }
+        )
+    }
+
+    private static func changeHooks(install: Bool) {
+        let alert = NSAlert()
+        do {
+            let file = HookFile()
+            if install {
+                try file.install(command: HookSettings.command(for: Bundle.main.executablePath ?? ""))
+                alert.messageText = "Claude hooks installed"
+                alert.informativeText = "New Claude Code sessions will show up in the notch. A backup of your settings was saved."
+            } else {
+                try file.remove()
+                alert.messageText = "Claude hooks removed"
+                alert.informativeText = "Notch Buddy's entries were taken out of Claude's settings. Everything else is as it was."
+            }
+        } catch {
+            alert.messageText = "Couldn't change Claude's settings"
+            alert.informativeText = error.localizedDescription
+        }
+        NSApp.activate()
+        alert.runModal()
+    }
+}
+
+/// The actions behind the notch's right-click menu.
+struct NotchMenu {
+    var installHooks: () -> Void
+    var removeHooks: () -> Void
 }
