@@ -11,15 +11,24 @@ struct StatusLineTests {
     ])
 
     @Test func usageIsPassedToTheApp() throws {
-        let event = try #require(StatusLine.usageEvent(from: input))
+        let event = try #require(StatusLine.event(from: input))
         let json = try #require(try JSONSerialization.jsonObject(with: event) as? [String: Any])
         #expect(json["hook_event_name"] as? String == Usage.event)
         #expect(json["used_percentage"] as? Double == 38)
     }
 
+    @Test func contextIsPassedWithItsSession() throws {
+        let input = Data(#"{"session_id":"s1","context_window":{"used_percentage":53.2}}"#.utf8)
+        let event = try #require(StatusLine.event(from: input))
+        let json = try #require(try JSONSerialization.jsonObject(with: event) as? [String: Any])
+        #expect(json["session_id"] as? String == "s1")
+        #expect(json["context_used"] as? Double == 53.2)
+        #expect(json["used_percentage"] == nil)
+    }
+
     @Test func noUsageNoEvent() {
-        #expect(StatusLine.usageEvent(from: Data(#"{"model":{"display_name":"Opus"}}"#.utf8)) == nil)
-        #expect(StatusLine.usageEvent(from: Data("junk".utf8)) == nil)
+        #expect(StatusLine.event(from: Data(#"{"model":{"display_name":"Opus"}}"#.utf8)) == nil)
+        #expect(StatusLine.event(from: Data("junk".utf8)) == nil)
     }
 
     @Test func ownLine() {
@@ -92,7 +101,7 @@ struct UpdaterTests {
 struct RightSideTests {
     let model: NotchModel = {
         let m = NotchModel()
-        m.soundsOn = false
+        m.live = false
         return m
     }()
 

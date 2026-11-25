@@ -8,6 +8,9 @@ struct NotchGeometry: Equatable {
     static let openSize = CGSize(width: 470, height: 140)
     static let closedRadius: CGFloat = 12
     static let openRadius: CGFloat = 24
+    /// The curved shoulders where the notch meets the menu bar.
+    static let closedShoulder: CGFloat = 6
+    static let openShoulder: CGFloat = 14
 
     /// True on a MacBook screen with a real camera notch.
     var hasNotch = false
@@ -34,9 +37,18 @@ struct NotchGeometry: Equatable {
         }
     }
 
-    /// The screen with a notch, or the main screen when none has one.
+    /// The screen to sit on, following the "Show on" setting.
     @MainActor
     static func bestScreen() -> NSScreen? {
-        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first
+        let screens = NSScreen.screens
+        return pick(screens.map { $0.safeAreaInsets.top > 0 }, external: Prefs.screen == .external)
+            .map { screens[$0] }
+    }
+
+    /// Which screen, given whether each one has a notch (the first is the one with the menu bar).
+    /// The MacBook screen, or an external one when that's chosen and one is plugged in.
+    /// Without the chosen kind, the other kind; with no notch anywhere, the first screen.
+    static func pick(_ hasNotch: [Bool], external: Bool) -> Int? {
+        hasNotch.firstIndex(of: !external) ?? hasNotch.indices.first
     }
 }

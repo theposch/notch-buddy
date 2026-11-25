@@ -15,7 +15,7 @@ BIN="$(swift build -c release --show-bin-path)/NotchBuddy"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/NotchBuddy"
-cp Resources/clawd.html "$APP/Contents/Resources/"
+cp Resources/clawd.html Resources/AppIcon.icns "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,12 +25,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>$NAME</string>
   <key>CFBundleIdentifier</key><string>local.notchbuddy</string>
   <key>CFBundleExecutable</key><string>NotchBuddy</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSAppleEventsUsageDescription</key><string>Clicking a session brings its Terminal tab forward.</string>
+  <key>NSFocusStatusUsageDescription</key><string>Notch Buddy stays quiet while a Focus is on.</string>
   <key>NBReleasesURL</key><string>$FEED</string>
 </dict></plist>
 PLIST

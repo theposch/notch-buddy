@@ -7,7 +7,7 @@ import Testing
 struct NotchModelTests {
     let model: NotchModel = {
         let m = NotchModel()
-        m.soundsOn = false
+        m.live = false
         return m
     }()
 

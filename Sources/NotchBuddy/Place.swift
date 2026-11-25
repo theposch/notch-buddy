@@ -14,6 +14,8 @@ struct Place: Equatable {
     var tty: String?
     /// The project folder.
     var folder: String?
+    /// Claude's own process, to tell whether the session is still running.
+    var pid: Int32?
 
     static let key = "notch_buddy"
 
@@ -33,6 +35,7 @@ struct Place: Equatable {
         terminal = info["terminal"]
         tty = info["tty"]
         folder = event["cwd"] as? String
+        pid = info["pid"].flatMap { Int32($0) }
     }
 
     // MARK: The helper's side
@@ -46,6 +49,7 @@ struct Place: Equatable {
             info["conversation"] = environment["CLAUDE_CODE_HOST_SESSION_ID"]
         }
         info["terminal"] = environment["TERM_PROGRAM"]
+        info["pid"] = environment["CLAUDE_PID"]
         info["tty"] = terminalDevice()
         e[key] = info
         return (try? JSONSerialization.data(withJSONObject: e)) ?? event

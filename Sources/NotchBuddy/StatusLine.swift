@@ -7,7 +7,7 @@ enum StatusLine {
     static func run(previous: String?) -> Never {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5) { exit(0) }   // safety net
         let input = FileHandle.standardInput.readDataToEndOfFile()
-        if let usage = usageEvent(from: input) {
+        if let usage = event(from: input) {
             _ = HookHelper.send(usage, to: EventSocket.path, wait: nil)
         }
         if let previous = previous.flatMap(HookSettings.unpack),
@@ -18,15 +18,30 @@ enum StatusLine {
         exit(0)
     }
 
-    /// The 5-hour usage, as an event for the app. Nil when Claude didn't include it.
-    static func usageEvent(from input: Data) -> Data? {
-        guard let json = try? JSONSerialization.jsonObject(with: input) as? [String: Any],
-              let window = (json["rate_limits"] as? [String: Any])?["five_hour"] as? [String: Any],
-              let used = window["used_percentage"] as? Double,
-              let resets = window["resets_at"] as? Double else { return nil }
-        return try? JSONSerialization.data(withJSONObject: [
-            "hook_event_name": Usage.event, "used_percentage": used, "resets_at": resets,
-        ])
+    /// The 5-hour and weekly usage, and this conversation's context used and cost, as an event
+    /// for the app. Nil when Claude included none of them.
+    static func event(from input: Data) -> Data? {
+        guard let json = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { return nil }
+        var event: [String: Any] = ["hook_event_name": Usage.event]
+        if let window = (json["rate_limits"] as? [String: Any])?["five_hour"] as? [String: Any],
+           let used = window["used_percentage"] as? Double, let resets = window["resets_at"] as? Double {
+            event["used_percentage"] = used
+            event["resets_at"] = resets
+        }
+        if let window = (json["rate_limits"] as? [String: Any])?["seven_day"] as? [String: Any],
+           let used = window["used_percentage"] as? Double, let resets = window["resets_at"] as? Double {
+            event["week_used"] = used
+            event["week_resets"] = resets
+        }
+        if let id = json["session_id"] as? String {
+            if let context = (json["context_window"] as? [String: Any])?["used_percentage"] as? Double {
+                event["context_used"] = context
+            }
+            if let cost = (json["cost"] as? [String: Any])?["total_cost_usd"] as? Double { event["cost"] = cost }
+            if event["context_used"] != nil || event["cost"] != nil { event["session_id"] = id }
+        }
+        guard event.count > 1 else { return nil }
+        return try? JSONSerialization.data(withJSONObject: event)
     }
 
     /// "Opus · 12% context"
@@ -67,14 +82,15 @@ struct Usage: Equatable {
     }
 
     // Kept between launches.
-    static func load() -> Usage? {
+    /// "usage" for the 5-hour window, "week" for the weekly one.
+    static func load(_ name: String = "usage") -> Usage? {
         let d = UserDefaults.standard
-        guard d.object(forKey: "usageUsed") != nil else { return nil }
-        return Usage(used: d.double(forKey: "usageUsed"), resets: Date(timeIntervalSince1970: d.double(forKey: "usageResets")))
+        guard d.object(forKey: name + "Used") != nil else { return nil }
+        return Usage(used: d.double(forKey: name + "Used"), resets: Date(timeIntervalSince1970: d.double(forKey: name + "Resets")))
     }
 
-    func save() {
-        UserDefaults.standard.set(used, forKey: "usageUsed")
-        UserDefaults.standard.set(resets.timeIntervalSince1970, forKey: "usageResets")
+    func save(_ name: String = "usage") {
+        UserDefaults.standard.set(used, forKey: name + "Used")
+        UserDefaults.standard.set(resets.timeIntervalSince1970, forKey: name + "Resets")
     }
 }

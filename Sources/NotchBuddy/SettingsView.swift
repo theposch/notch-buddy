@@ -11,9 +11,11 @@ struct SettingsView: View {
     @AppStorage("clawdColor") private var color = Prefs.clay
     @AppStorage("rightSide") private var rightSide = Prefs.RightSide.auto.rawValue
     @AppStorage("hideFinished") private var hideFinished = false
-    @AppStorage("soundNeedsYou") private var soundNeedsYou = true
-    @AppStorage("soundFinished") private var soundFinished = false
+    @AppStorage("screen") private var screen = Prefs.ScreenChoice.builtIn.rawValue
+    @AppStorage("peek") private var peek = true
+    @AppStorage("shortcuts") private var shortcuts = true
     @State private var openAtLogin = LoginItem.isOn
+    @State private var focusNeedsAsking = Focus.needsAsking
 
     var body: some View {
         Form {
@@ -31,15 +33,39 @@ struct SettingsView: View {
                 Picker("Right side of the notch", selection: $rightSide) {
                     ForEach(Prefs.RightSide.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
                 }
+                Picker("Show on", selection: $screen) {
+                    ForEach(Prefs.ScreenChoice.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }
                 Picker("Finished sessions", selection: $hideFinished) {
                     Text("Stay until I click").tag(false)
                     Text("Hide right away").tag(true)
                 }
             }
 
+            Section("Sounds") {
+                ForEach(Prefs.Moment.allCases, id: \.self) { SoundPicker(moment: $0) }
+            }
+
             Section {
-                Toggle("Sound when Claude needs you", isOn: $soundNeedsYou)
-                Toggle("Sound when a session finishes", isOn: $soundFinished)
+                Toggle("Peek when Claude needs you", isOn: $peek)
+                Toggle(isOn: $shortcuts) {
+                    Text("Keyboard shortcuts")
+                    Text("\(Shortcuts.allowText) allows and \(Shortcuts.denyText) denies the top request, from any app.")
+                }
+                LabeledContent {
+                    if focusNeedsAsking {
+                        Button("Allow…") {
+                            Focus.ask { _ in Task { @MainActor in focusNeedsAsking = Focus.needsAsking } }
+                        }
+                    } else {
+                        Button("Open Focus Settings…") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Focus-Settings.extension")!)
+                        }
+                    }
+                } label: {
+                    Text("Quiet during Focus")
+                    Text("Works when \u{201C}Share Focus Status\u{201D} is on in Focus settings.")
+                }
                 Toggle("Open at login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) { _, on in openAtLogin = LoginItem.set(on) }
                 if LoginItem.needsApproval {
@@ -66,7 +92,30 @@ struct SettingsView: View {
         .scrollDisabled(true)
         .frame(width: 460)
         .fixedSize()
-        .onChange(of: "\(color)\(rightSide)\(hideFinished)\(soundNeedsYou)\(soundFinished)") { model.playExample() }
+        .onChange(of: "\(color)\(rightSide)\(hideFinished)") { model.playExample() }
+    }
+}
+
+/// A menu of the Mac's alert sounds for one moment. Picking one plays it, so you hear it.
+struct SoundPicker: View {
+    let moment: Prefs.Moment
+    @State private var name: String
+
+    init(moment: Prefs.Moment) {
+        self.moment = moment
+        _name = State(initialValue: Prefs.sound(for: moment))
+    }
+
+    var body: some View {
+        Picker(moment.title, selection: $name) {
+            Text("None").tag(Prefs.silent)
+            Divider()
+            ForEach(Prefs.sounds, id: \.self) { Text($0).tag($0) }
+        }
+        .onChange(of: name) { _, picked in
+            UserDefaults.standard.set(picked, forKey: moment.key)
+            Prefs.preview(picked)
+        }
     }
 }
 

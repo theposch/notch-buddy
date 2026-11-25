@@ -9,8 +9,38 @@ struct Session: Identifiable {
     var state: State
     /// When the state last changed.
     var changed = Date()
+    /// When its current job started; kept while it waits for you, cleared when it's done.
+    var workingSince: Date?
     /// What it's waiting on: "Run: npm test", "Has a question".
     var summary: String?
+    /// The whole command, path or address, shown on hover.
+    var detail: String?
+    /// The rule "Always allow" would add ("Bash(npm test:*)"), when Claude suggests one.
+    var always: String?
+    /// When we last heard from it.
+    var heard = Date()
+    /// What it's doing right now ("Editing NotchView.swift"), while it works.
+    var activity: String?
+    /// The name you gave the conversation ("app build"), when it has one.
+    var title: String?
+    /// The title, or else the folder it works in.
+    var name: String { title ?? folder }
+    /// Its model, short: "Opus 5.5".
+    var model: String?
+    /// The git branch its folder is on: "main".
+    var branch: String?
+    /// Lines changed, tests, servers, to-dos and helpers.
+    var work = Work()
+    /// Its branch's pull request, when it has one.
+    var pr: PullRequest?
+    /// What it has cost so far, when Claude's status line says (in Terminal).
+    var cost: Double?
+    /// Waiting on you to review a plan, not to allow a single step.
+    var plan = false
+    /// How full its conversation is, 0–100.
+    var context: Int?
+    /// True once Claude's status line has said; it's exact, so it wins over our own reading.
+    var contextFromStatusLine = false
     /// True while Allow / Deny from the notch would still reach Claude.
     var canAnswer = false
     /// Its own colour, used when the colour setting is "random".
@@ -26,6 +56,32 @@ struct Session: Identifiable {
         }
     }
 
+    /// Lines shown under a "needs you" row while the mouse is over it: the whole command,
+    /// and what "Always allow" would allow. Long lines wrap, up to 6 of them.
+    var hoverLines: Int {
+        guard state == .waiting, let detail else { return 0 }
+        let wrapped = detail.split(separator: "\n", omittingEmptySubsequences: false)
+            .reduce(0) { $0 + max(1, ($1.count + 63) / 64) }
+        return min(wrapped, 6) + (always != nil && canAnswer ? 1 : 0)
+    }
+
+    static let hoverLineHeight: CGFloat = 15
+
+    /// The details line that slides in while the mouse is over the row.
+    /// `shortcut`: this row is the one ⌥⌘Y and ⌥⌘N answer.
+    func details(shortcut: Bool) -> [Detail] {
+        var list: [Detail] = []
+        if shortcut { list.append(.keys) }
+        if let branch { list.append(.branch(branch)) }
+        if let text = work.linesText { list.append(.lines(text)) }
+        if let tests = work.tests { list.append(.tests(tests)) }
+        if let pr { list.append(.pullRequest(pr)) }
+        if let server = work.server { list.append(.server(server)) }
+        if let todos = work.todos { list.append(.todo("\(todos.done) of \(todos.total)" + (todos.current.map { " · \($0)" } ?? ""))) }
+        if let cost { list.append(.cost(cost)) }
+        return list
+    }
+
     /// Needs you, then working, then done.
     var urgency: Int {
         switch state {
@@ -35,6 +91,94 @@ struct Session: Identifiable {
         case .ready: 0
         }
     }
+}
+
+/// Nothing running: Clawd lives his best life. His hobbies go all day; mornings start with
+/// One piece of a row's details line.
+enum Detail: Hashable {
+    case keys, branch(String), lines(String), tests(Work.Tests), pullRequest(PullRequest), server(URL), todo(String), cost(Double)
+
+    var text: String {
+        switch self {
+        case .keys: "\(Shortcuts.allowText) allow · \(Shortcuts.denyText) deny"
+        case .branch(let name): name
+        case .lines(let text): text
+        case .tests(let tests): tests.text
+        case .pullRequest(let pr): pr.text
+        case .server(let url): (url.host() ?? "localhost") + (url.port.map { ":\($0)" } ?? "")
+        case .todo(let text): text
+        case .cost(let dollars): String(format: "$%.2f", dollars)
+        }
+    }
+
+    /// Most pieces start with a small symbol.
+    var hasSymbol: Bool {
+        switch self {
+        case .keys, .lines, .cost: false
+        default: true
+        }
+    }
+}
+
+/// coffee and late nights with a nightcap, which keep coming back now and then.
+enum DayPart {
+    case morning, day, night
+
+    init(hour: Int) {
+        self = (5..<10).contains(hour) ? .morning : (hour >= 23 || hour < 5) ? .night : .day
+    }
+
+    static var now: DayPart { DayPart(hour: Calendar.current.component(.hour, from: Date())) }
+
+    /// Clawd's page modes for these.
+    static let restingModes: Set<String> = ["life", "morning", "night"]
+
+    /// Clawd's mode on his page.
+    var clawdMode: String {
+        switch self {
+        case .morning: "morning"
+        case .day: "life"
+        case .night: "night"
+        }
+    }
+
+    /// Said when we don't know his hobby yet.
+    var line: String {
+        switch self {
+        case .morning: "Good morning. Coffee first."
+        case .day: "Nothing running. Clawd\u{2019}s enjoying his day off."
+        case .night: "It\u{2019}s late. Clawd\u{2019}s off to bed."
+        }
+    }
+
+    /// Like a status in a chat app, one for each thing he does. No emoji: Clawd's picture says it.
+    static let status: [String: String] = [
+        "coffee": "Coffee first. Then code. Maybe.",
+        "nightcap": "Off to bed. Wake me if it compiles.",
+        "fish": "Gone fishing. Bugs only bite on Mondays.",
+        "read": "Reading the docs. For fun. Yes, really.",
+        "guitar": "Jamming. Back in five (songs).",
+        "bubbles": "Blowing bubbles. Very important work.",
+        "telescope": "Looking for bugs in space.",
+        "tea": "Tea break. Steeping, not sleeping.",
+        "surf": "Catching waves, not errors.",
+        "sax": "Smooth jazz hour. No meetings, please.",
+        "paint": "Painting. It\u{2019}s abstract, like the specs.",
+        "water": "Watering plants. They grow faster than tests.",
+        "balloons": "Party of one. Everything shipped.",
+        "lollipop": "Lollygagging, professionally.",
+        "gaming": "Gaming. Strictly research.",
+        "headphones": "Lo-fi beats to do nothing to.",
+        "icecream": "Ice cream break. Earned it.",
+        "kite": "Flying a kite. Head in the cloud.",
+        "sunbathe": "Out of office. Very out.",
+        "skate": "Kickflipping over merge conflicts.",
+        "cat": "Petting the cat. The cat says hi.",
+        "yawn": "Long day of doing nothing.",
+    ]
+
+    /// What the open notch says under "All caught up".
+    func line(for hobby: String?) -> String { hobby.flatMap { Self.status[$0] } ?? line }
 }
 
 /// Everything the notch shows. Claude Code events change it; the view follows.
@@ -47,8 +191,14 @@ final class NotchModel {
     var clawdWord = ""
     /// Usage left in the 5-hour window, from Claude's status line.
     private(set) var usage = Usage.load()
+    /// The weekly limit, when Claude's status line has said.
+    private(set) var week = Usage.load("week")
+    /// What got done today, for the empty notch.
+    private(set) var today = Today.load()
     /// When we last heard from Claude Code at all.
     private(set) var lastHeard: Date?
+    /// The row the mouse is over; a "needs you" row then shows the whole command.
+    var hovered: String?
     /// First launch: the notch shows a welcome instead of rows.
     var welcome = false
     /// A newer version on the downloads page, if there is one.
@@ -63,14 +213,26 @@ final class NotchModel {
     @ObservationIgnored private var timers: [Any] = []
     /// Helpers waiting for Allow or Deny, by session.
     @ObservationIgnored private var replies: [String: Reply] = [:]
-    /// Off in tests.
-    @ObservationIgnored var soundsOn = true
+    /// Off in tests: no sounds, nothing saved for the daily recap, no pull request lookups.
+    @ObservationIgnored var live = true
 
     init() {
         timers.append(NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.prefs += 1 }
+        })
+        timers.append(Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                self?.tidy()
+            }
+        })
+        timers.append(Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                self?.lookUpPullRequests()
+            }
         })
         timers.append(Task { [weak self] in
             while !Task.isCancelled {
@@ -101,18 +263,43 @@ final class NotchModel {
     var busyCount: Int { sessions.filter { $0.state == .working || $0.state == .waiting }.count }
 
     var usageLeft: Int? { usage?.left() }
+    var weekLeft: Int? { week?.left() }
+
+    /// The request ⌥⌘Y and ⌥⌘N answer: the top one that can be answered from here (not a plan).
+    var shortcutTarget: Session? {
+        _ = prefs
+        return Prefs.shortcuts ? rows.first { $0.state == .waiting && $0.canAnswer && !$0.plan } : nil
+    }
+
+    /// Under this much usage left, Clawd sweats.
+    static let lowUsage = 10
+    var usageIsLow: Bool { usageLeft.map { $0 < Self.lowUsage } ?? false }
+    /// All used up: Clawd naps until it resets.
+    var usageOut: Bool { usageLeft == 0 }
+    var resetTime: String? { usage.map { $0.resets.formatted(date: .omitted, time: .shortened) } }
+
+    /// Called when a session starts needing you, so the notch can peek.
+    var onNeedsYou: (() -> Void)?
 
     // MARK: What Clawd and the wings show
 
     var clawdMode: String {
         if sessions.contains(where: { $0.state == .waiting }) { return "waiting" }
+        if usageOut { return "out" }
+        if usageIsLow { return "low" }
         if sessions.contains(where: { $0.state == .working }) { return "working" }
-        return celebrating ? "done" : "life"
+        return celebrating ? "done" : DayPart.now.clawdMode
     }
+
+    /// Clawd's colour while nothing is running. With the random setting, picked once per launch.
+    private let restColor = Prefs.pickColor(avoiding: [])
+    var restingColor: String { _ = prefs; return Prefs.clawdColor == Prefs.random ? restColor : Prefs.clawdColor }
+    /// The hobby the notch's Clawd is doing while nothing runs; the open notch's Clawd copies it.
+    var hobby: String?
 
     var clawdColor: String {
         _ = prefs
-        return lead.map(color(of:)) ?? (Prefs.clawdColor == Prefs.random ? Prefs.clay : Prefs.clawdColor)
+        return lead.map(color(of:)) ?? restingColor
     }
 
     var rightSide: Prefs.RightSide { _ = prefs; return Prefs.rightSide }
@@ -127,6 +314,7 @@ final class NotchModel {
         case .usage: return usageText
         case .auto:
             if clawdMode == "waiting" { return "Needs you" }
+            if usageOut, let time = resetTime { return "Back at \(time)" }
             guard let word else { return usageText }
             let counted = busyCount > 1 ? "\(word) · \(busyCount)" : word
             return autoShowsUsage ? usageText ?? counted : counted
@@ -157,10 +345,27 @@ final class NotchModel {
 
     var openSize: CGSize {
         let rows = min(sessions.count, Self.maxRows)
-        let body = welcome ? 128 : (rows == 0 ? 80 : CGFloat(rows) * Self.rowHeight + 14)
         // Wide enough that usage left and the buttons fit either side of the camera.
         let width = max(NotchGeometry.openSize.width, geometry.cameraWidth + 2 * 175)
+        let row = self.rows.prefix(Self.maxRows).first { $0.id == hovered }
+        let lines = (row?.hoverLines ?? 0) + (row.map { Self.detailLines($0.details(shortcut: $0.id == shortcutTarget?.id), width: width - 82) } ?? 0)
+        let hover = lines > 0 ? CGFloat(lines) * Session.hoverLineHeight + 8 : 0
+        let empty: CGFloat = today.line == nil || usageOut ? 124 : 140
+        let body = welcome ? 128 : (rows == 0 ? empty : CGFloat(rows) * Self.rowHeight + 14 + hover)
         return CGSize(width: width, height: geometry.barHeight + body)
+    }
+
+    static let detailFont = NSFont.systemFont(ofSize: 11, weight: .medium)
+
+    /// How many lines a details line takes when it wraps at this width.
+    static func detailLines(_ details: [Detail], width: CGFloat) -> Int {
+        var lines = 0, x: CGFloat = 0
+        for detail in details {
+            let w = ceil((detail.text as NSString).size(withAttributes: [.font: detailFont]).width) + (detail.hasSymbol ? 15 : 0)
+            if lines == 0 || x + w > width { lines += 1; x = 0 }
+            x += w + 10
+        }
+        return lines
     }
 
     // MARK: Claude Code events
@@ -170,15 +375,39 @@ final class NotchModel {
         guard let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let name = event["hook_event_name"] as? String else { reply?.cancel(); return }
         lastHeard = Date()
-        if name == Usage.event, let used = event["used_percentage"] as? Double,
-           let resets = event["resets_at"] as? Double {
-            usage = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
-            usage?.save()
+        if name == Usage.event {
+            if let used = event["used_percentage"] as? Double, let resets = event["resets_at"] as? Double {
+                let before = usageLeft ?? 100
+                usage = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
+                usage?.save()
+                // Just dropped under 10% left: one soft sound (Clawd starts sweating by himself).
+                if before >= Self.lowUsage, let left = usageLeft, left < Self.lowUsage, live {
+                    Prefs.play(.usageLow)
+                }
+            }
+            if let used = event["week_used"] as? Double, let resets = event["week_resets"] as? Double {
+                week = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
+                week?.save("week")
+            }
+            if let id = event["session_id"] as? String, let i = sessions.firstIndex(where: { $0.id == id }) {
+                if let used = event["context_used"] as? Double {
+                    sessions[i].context = min(100, max(0, Int(used.rounded())))
+                    sessions[i].contextFromStatusLine = true
+                }
+                if let cost = event["cost"] as? Double { sessions[i].cost = cost }
+            }
             return
         }
         guard let id = event["session_id"] as? String, id != Self.exampleID else { reply?.cancel(); return }
         let folder = (event["cwd"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Claude"
         let tool = event["tool_name"] as? String
+
+        // Helpers starting and stopping only change the "+2" on Clawd.
+        if name == "SubagentStart" || name == "SubagentStop" {
+            if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].work.note(name, tool: "", event: event) }
+            reply?.cancel()
+            return
+        }
 
         // Anything that happens next means an open request was answered elsewhere.
         // (A Notification is just Claude reminding you, so it doesn't count.)
@@ -191,23 +420,34 @@ final class NotchModel {
         let current = sessions.first { $0.id == id }
         var next: Session.State
         var summary: String?
+        var detail: String?
+        var always: String?
+        // Kept between tools (Claude is still on it), cleared by a new message or the end of a turn.
+        var activity = ["PostToolUse", "PostToolUseFailure", "PermissionRequest", "Notification"].contains(name) ? current?.activity : nil
+        var plan = name == "Notification" ? current?.plan ?? false : false
         switch name {
         case "SessionStart":
             next = current?.state ?? .ready
-        case "UserPromptSubmit", "PostToolUse":
+        case "UserPromptSubmit", "PostToolUse", "PostToolUseFailure":
             next = .working
         case "PreToolUse":
             next = tool == Permission.questionTool ? .waiting : .working
             summary = tool == Permission.questionTool ? "Has a question" : nil
+            plan = tool == "ExitPlanMode"
+            if next == .working { activity = Activity.line(tool: tool ?? "", input: event["tool_input"] as? [String: Any] ?? [:]) }
         case "PermissionRequest":
             next = .waiting
-            summary = Permission.summary(tool: tool ?? "", input: event["tool_input"] as? [String: Any] ?? [:])
+            let input = event["tool_input"] as? [String: Any] ?? [:]
+            summary = Permission.summary(tool: tool ?? "", input: input)
+            detail = Permission.detail(tool: tool ?? "", input: input)
+            always = Permission.alwaysText(event)
+            plan = tool == "ExitPlanMode"
         case "Notification":
             // "Waiting for your input" after a finished turn: done already says that.
             let idle = (event["notification_type"] as? String) == "idle_prompt"
                 || ((event["message"] as? String) ?? "").contains("waiting for your input")
             next = idle && (current?.state == .done || current?.state == .ready) ? current!.state : .waiting
-            summary = current?.summary
+            (summary, detail, always) = (current?.summary, current?.detail, current?.always)
         case "Stop":
             next = .done
         default:
@@ -221,19 +461,38 @@ final class NotchModel {
         session.folder = folder
         session.place = Place(event: event)
         if next != session.state { session.changed = Date() }
+        if next == .working || next == .waiting { session.workingSince = session.workingSince ?? Date() }
+        else { session.workingSince = nil }
         session.state = next
         session.summary = next == .waiting ? summary : nil
+        session.detail = next == .waiting ? detail : nil
+        session.always = next == .waiting ? always : nil
+        session.activity = activity
+        session.plan = next == .waiting && plan
+        session.work.note(name, tool: tool ?? "", event: event)
+        let branch = event[Git.branchKey] as? String
+        let newBranch = branch != nil && branch != session.branch
+        if let branch { session.branch = branch }
+        if let id = (event[ModelName.key] ?? event["model"]) as? String, let model = ModelName.short(id) { session.model = model }
+        if let title = event[ConversationSize.titleKey] as? String { session.title = title }
+        session.heard = Date()
+        if !session.contextFromStatusLine, let used = event[ConversationSize.key] as? Int { session.context = used }
         if let reply { replies[id] = reply }
         session.canAnswer = replies[id] != nil
+        count(session, before: current)
         store(session, was: was)
+        if newBranch { lookUpPullRequests() }
     }
 
     /// Saves a session's new state, with the sound and celebration that go with it.
     private func store(_ session: Session, was: Session.State?) {
-        if session.state == .waiting, was != .waiting, soundsOn, Prefs.soundNeedsYou { Prefs.play("Ping") }
+        if session.state == .waiting, was != .waiting {
+            if live { Prefs.play(.needsYou) }
+            if session.id != Self.exampleID { onNeedsYou?() }
+        }
         if session.state == .done, was != .done {
             celebrate()
-            if soundsOn, Prefs.soundFinished { Prefs.play("Glass") }
+            if live { Prefs.play(.finished) }
             if Prefs.hideFinished { sessions.removeAll { $0.id == session.id }; return }
         }
         if let i = sessions.firstIndex(where: { $0.id == session.id }) { sessions[i] = session }
@@ -269,13 +528,17 @@ final class NotchModel {
         withAnimation(.spring(duration: 0.32, bounce: 0.18)) { store(example, was: current?.state) }
     }
 
-    /// Allow or Deny, clicked in the notch.
-    func answer(_ session: Session, allow: Bool) {
+    enum Answer: String { case allow, always, deny }
+
+    /// Allow, Always allow or Deny, clicked in the notch.
+    func answer(_ session: Session, _ answer: Answer) {
         guard let reply = replies.removeValue(forKey: session.id),
               let i = sessions.firstIndex(where: { $0.id == session.id }) else { return }
-        reply.send(allow ? "allow" : "deny")
+        reply.send(answer.rawValue)
         sessions[i].state = .working
         sessions[i].summary = nil
+        sessions[i].detail = nil
+        sessions[i].always = nil
         sessions[i].canAnswer = false
         sessions[i].changed = Date()
     }
@@ -292,11 +555,69 @@ final class NotchModel {
         if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].canAnswer = false }
     }
 
+    // MARK: Tidying up
+
+    /// Removes sessions whose Claude has quit or crashed without saying goodbye, and stops showing
+    /// "Working" for one that's been silent for half an hour (stopped with Esc, for example).
+    func tidy(now: Date = Date(), isRunning: (Int32) -> Bool = NotchModel.isRunning) {
+        // The usage window has reset: we don't know the new figure until Claude says (and Clawd wakes up).
+        if let usage, now >= usage.resets { self.usage = nil }
+        for session in sessions where session.id != Self.exampleID {
+            if let pid = session.place.pid, !isRunning(pid) {
+                dropReply(for: session.id)
+                withAnimation { sessions.removeAll { $0.id == session.id } }
+            } else if session.state == .working, now.timeIntervalSince(session.heard) > 30 * 60,
+                      let i = sessions.firstIndex(where: { $0.id == session.id }) {
+                sessions[i].state = .ready
+                sessions[i].changed = now
+                sessions[i].workingSince = nil
+            }
+        }
+    }
+
+    nonisolated static func isRunning(_ pid: Int32) -> Bool {
+        kill(pid, 0) == 0 || errno == EPERM
+    }
+
     /// Clicking a row: go to its conversation. A finished row is cleared too.
     func open(_ session: Session) {
         guard session.id != Self.exampleID else { return }
         session.place.go()
         if session.state == .done { sessions.removeAll { $0.id == session.id } }
+    }
+
+    /// "Clear from the list" in a row's menu.
+    func clear(_ session: Session) {
+        dropReply(for: session.id)
+        sessions.removeAll { $0.id == session.id }
+    }
+
+    /// Adds a session's latest to today's figures.
+    private func count(_ session: Session, before: Session?) {
+        guard live, session.id != Self.exampleID else { return }
+        var t = today.day == Today.dayName() ? today : Today(day: Today.dayName())
+        if session.state == .working || session.state == .waiting { t.sessions.insert(session.id) }
+        if let since = before?.workingSince, session.workingSince == nil { t.seconds += Date().timeIntervalSince(since) }
+        t.added += max(0, session.work.added - (before?.work.added ?? 0))
+        t.removed += max(0, session.work.removed - (before?.work.removed ?? 0))
+        t.files.formUnion(session.work.files)
+        guard t != today else { return }
+        today = t
+        t.save()
+    }
+
+    /// Asks GitHub about each session's branch (needs GitHub's own `gh` tool, signed in).
+    func lookUpPullRequests() {
+        guard live else { return }
+        for folder in Set(sessions.compactMap { $0.branch != nil ? $0.place.folder : nil }) {
+            Task { [weak self] in
+                let pr = await PullRequest.look(in: folder)
+                guard let self else { return }
+                for i in self.sessions.indices where self.sessions[i].place.folder == folder && self.sessions[i].pr != pr {
+                    withAnimation { self.sessions[i].pr = pr }
+                }
+            }
+        }
     }
 
     /// Clawd's short "done" dance before he goes back to his day off.

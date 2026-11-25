@@ -23,5 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // If Claude's settings have our entries from an older version or another place, update them.
         try? HookFile().refresh(command: HookSettings.command(for: Bundle.main.executablePath ?? ""))
         notch = NotchController()
+        Focus.askOnce()
     }
 }

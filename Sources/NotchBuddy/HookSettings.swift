@@ -5,7 +5,7 @@ import Foundation
 /// Everything else in the file is left alone, including other apps' hooks.
 enum HookSettings {
     static let events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
-                         "Notification", "Stop", "SessionEnd"]
+                         "PostToolUseFailure", "SubagentStart", "SubagentStop", "Notification", "Stop", "SessionEnd"]
     /// Every command we add ends like this, which is how we find ours again.
     static let ending = "/Contents/MacOS/NotchBuddy' hook"
 

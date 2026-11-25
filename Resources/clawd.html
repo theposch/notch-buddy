@@ -71,6 +71,24 @@ function clawd(c, x, y, o = {}) {
   arm(c, x - wd, armY, o.armL || "out", col);
   arm(c, x + 14 + wd, armY, o.armR || "out", col);
   eyes(c, x, top + Math.max(0, 2 - Math.floor(sq / 3)), o.eyes || "open");
+  if (OUTFIT) hat(c, x, top, OUTFIT);
+}
+/* Seasonal outfits, set from Swift: a hat on top of Clawd's head. */
+let OUTFIT = null;
+window.setOutfit = o => { OUTFIT = o || null; };
+function hat(c, x, top, kind) {
+  const r = (dx, dy, w, h, col) => R(c, x + dx, top + dy, w, h, col);
+  if (kind === "santa") {          // red, floppy to the right, white brim and bobble
+    r(3, -1, 10, 1, "#f5f4ed");
+    r(4, -2, 8, 1, "#E24B4A"); r(5, -3, 6, 1, "#E24B4A"); r(7, -4, 5, 1, "#E24B4A"); r(10, -5, 3, 1, "#E24B4A");
+    r(13, -6, 2, 2, "#f5f4ed");
+  } else if (kind === "party") {   // a striped cone with a pom-pom
+    r(8, -1, 5, 1, "#ED93B1"); r(9, -2, 3, 1, "#FAC775"); r(9, -3, 3, 1, "#ED93B1");
+    r(10, -4, 1, 1, "#FAC775"); r(9, -6, 3, 2, "#85B7EB");
+  } else if (kind === "witch") {   // purple, wide brim, orange band, bent tip
+    r(2, -1, 12, 1, "#7F77DD"); r(5, -2, 6, 1, "#EF9F27"); r(6, -3, 4, 1, "#7F77DD");
+    r(7, -4, 3, 1, "#7F77DD"); r(8, -5, 2, 1, "#7F77DD"); r(9, -6, 2, 1, "#7F77DD");
+  }
 }
 function arm(c, ax, ay, mode, col) {
   if (mode === "out") R(c, ax, ay, 2, 2, col);
@@ -4138,19 +4156,21 @@ const MODE_ANIMS = {
   impatient: ["tapfoot"],   // needs you, a few minutes in
   urgent:  ["megaphone"],   // needs you, ten minutes in
   stuck:   ["sweat"],       // same step for a long time
-  morning: ["coffee"],      // nothing running, before 10am
-  night:   ["nightcap"],    // nothing running, after 11pm
+  low:     ["sweat"],       // usage nearly used up
+  out:     ["sleep"],       // usage used up: a nap until it resets
+  morning: ["coffee"],      // nothing running, before 10am: mixed in with his hobbies
+  night:   ["nightcap"],    // nothing running, after 11pm: mixed in with his hobbies
   // nothing running: Clawd enjoys his day off, one hobby after another
   life:    ["fish", "read", "guitar", "bubbles", "telescope", "tea", "surf", "sax", "paint", "water",
             "balloons", "lollipop", "gaming", "headphones", "icecream", "kite", "sunbathe", "skate", "cat", "yawn"],
 };
 const MODE_WORD = {
   waiting: "Needs you", impatient: "Still waiting…", urgent: "Hey! Over here",
-  stuck: "Stuck?", done: "Done!", idle: "", zero: "", morning: "", night: "", life: "",
+  stuck: "Stuck?", low: "Running low", out: "Napping", done: "Done!", idle: "", zero: "", morning: "", night: "", life: "",
 };
 
 let pinned = null;   // follow another Clawd's hobby instead of picking our own
-let mode = "idle", current = byId.sleep, clock = 0, last = performance.now(), nextSwap = 0, calm = false;
+let mode = "idle", current = byId.sleep, clock = 0, last = performance.now(), nextSwap = 0, calm = false, shownAt = 0;
 /* Calm set: quieter working animations, swapped less often */
 const CALM = ["type", "read", "walk", "look"].filter(id => byId[id]);
 const cv = document.getElementById("c");
@@ -4168,20 +4188,30 @@ function tell(word) {
   // Inside the settings preview: tell the page around us too.
   if (window.parent !== window) try { window.parent.postMessage({ clawd: msg }, "*"); } catch (e) {}
 }
+/* Nothing running: hobbies all day. Mornings start with coffee, late nights with a nightcap,
+   and those keep coming back now and then between hobbies. */
+const RESTING = ["life", "morning", "night"];
+function restingPick() {
+  const extra = mode === "life" ? [] : MODE_ANIMS[mode];
+  if (clock === 0 && extra.length && byId[extra[0]]) return byId[extra[0]];
+  const pool = MODE_ANIMS.life.concat(extra, extra, extra).filter(id => byId[id] && id !== (current && current.id));
+  return byId[pick(pool)];
+}
 function swap() {
   if (mode === "working") {
     const w = pick(VERBS);
     current = calm ? byId[pick(CALM)] : (byId[VERB_ANIM[w]] || byId.type);
-    nextSwap = clock + (calm ? 9 + Math.random() * 3 : 4 + Math.random() * 2);
+    // A new one when Claude moves on to its next step (see nextStep), or after a minute on one step.
+    shownAt = clock;
+    nextSwap = clock + 60;
     tell(w + "…");
-  } else if (mode === "life" && pinned && byId[pinned]) {
+  } else if (RESTING.includes(mode) && pinned && byId[pinned]) {
     current = byId[pinned];
     nextSwap = Infinity;
     tell(MODE_WORD[mode]);
-  } else if (mode === "life") {
+  } else if (RESTING.includes(mode)) {
     // a new hobby every 30 seconds, never the same one twice in a row
-    const pool = MODE_ANIMS.life.filter(id => byId[id] && id !== (current && current.id));
-    current = byId[pick(pool)];
+    current = restingPick();
     nextSwap = clock + 30;
     tell(MODE_WORD[mode]);
   } else {
@@ -4197,10 +4227,13 @@ window.setMode = m => {
   mode = m; clock = 0; swap();
 };
 window.setColor = c => { CL = c; };
+/* Called from Swift when Claude starts its next step. Steps can come seconds apart,
+   so each animation plays for at least 20 seconds first. */
+window.nextStep = () => { if (mode === "working" && clock - shownAt >= 20) swap(); };
 /* Called from Swift: show the same hobby as the notch Clawd */
 window.setAnim = id => {
   pinned = id || null;
-  if (mode === "life" && pinned && byId[pinned] && current.id !== pinned) { current = byId[pinned]; clock = 0; nextSwap = Infinity; }
+  if (RESTING.includes(mode) && pinned && byId[pinned] && current.id !== pinned) { current = byId[pinned]; clock = 0; nextSwap = Infinity; }
 };
 window.setCalm = on => { calm = !!on; if (mode === "working") swap(); };
 /* The settings preview talks to us with messages: { nb: { color, calm, mode } }. */

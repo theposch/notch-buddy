@@ -18,16 +18,53 @@ enum Permission {
         return e["hook_event_name"] as? String == "PermissionRequest" && e["tool_name"] as? String != questionTool
     }
 
-    /// What the helper prints for the app's answer ("allow" or "deny"). Anything else: nothing.
-    static func output(for reply: Data) -> Data? {
-        let decision: [String: Any]
+    /// What the helper prints for the app's answer: "allow", "always" or "deny". Anything else: nothing.
+    /// "always" also hands back the rule Claude suggested, so it stops asking for the same thing.
+    static func output(for reply: Data, event: Data = Data()) -> Data? {
+        var decision: [String: Any]
         switch String(decoding: reply, as: UTF8.self) {
         case "allow": decision = ["behavior": "allow"]
+        case "always":
+            decision = ["behavior": "allow"]
+            let rules = alwaysRules((try? JSONSerialization.jsonObject(with: event) as? [String: Any]) ?? [:])
+            if !rules.isEmpty { decision["updatedPermissions"] = rules }
         case "deny": decision = ["behavior": "deny", "message": "The user denied this from Notch Buddy."]
         default: return nil
         }
         let output = ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": decision]]
         return try? JSONSerialization.data(withJSONObject: output, options: [.sortedKeys])
+    }
+
+    /// The "always allow …" rules Claude suggests with a request.
+    static func alwaysRules(_ event: [String: Any]) -> [[String: Any]] {
+        (event["permission_suggestions"] as? [[String: Any]] ?? []).filter {
+            $0["type"] as? String == "addRules" && $0["behavior"] as? String == "allow"
+        }
+    }
+
+    /// What "Always allow" would allow, in Claude's own words: "Bash(npm test:*)".
+    static func alwaysText(_ event: [String: Any]) -> String? {
+        let rules = alwaysRules(event).flatMap { $0["rules"] as? [[String: Any]] ?? [] }.compactMap { rule -> String? in
+            guard let tool = rule["toolName"] as? String else { return nil }
+            return (rule["ruleContent"] as? String).map { "\(tool)(\($0))" } ?? tool
+        }
+        return rules.isEmpty ? nil : rules.joined(separator: ", ")
+    }
+
+    /// The whole thing, for when the one-line summary is cut short: the full command, path or address.
+    static func detail(tool: String, input: [String: Any]) -> String? {
+        switch tool {
+        case "Bash": return input["command"] as? String
+        case "Edit", "MultiEdit", "Write", "Read", "NotebookEdit":
+            return input["file_path"] as? String ?? input["notebook_path"] as? String
+        case "WebFetch": return input["url"] as? String
+        case "WebSearch": return input["query"] as? String
+        default:
+            guard !input.isEmpty,
+                  let data = try? JSONSerialization.data(withJSONObject: input, options: [.sortedKeys, .withoutEscapingSlashes])
+            else { return nil }
+            return String(decoding: data, as: UTF8.self)
+        }
     }
 
     /// "Run: npm test", "Edit: README.md", …
@@ -44,7 +81,7 @@ enum Permission {
         case "Read": text = ("Read", file())
         case "WebFetch": text = ("Open", URL(string: input["url"] as? String ?? "")?.host() ?? "")
         case "WebSearch": text = ("Search", input["query"] as? String ?? "")
-        case "ExitPlanMode": return "Plan: ready to start"
+        case "ExitPlanMode": return "Plan ready to review"
         case questionTool: return "Has a question"
         default:
             // MCP tools are called "mcp__server__tool"; show just the tool.
