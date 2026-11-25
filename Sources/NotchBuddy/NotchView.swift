@@ -53,14 +53,13 @@ struct NotchView: View {
             }
 
             HStack(spacing: 0) {
-                // Clawd in the left wing. On the MacBook he sits against the camera;
-                // on other screens, at the outer edge.
+                // Clawd in the left wing, always at its outer edge.
                 ClawdView(mode: model.welcome ? "waiting" : model.clawdMode, color: model.clawdColor, onWord: { word in
                     withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.clawdWord = word }
                 }, onHobby: { model.hobby = $0 }, step: model.lead?.activity, reaction: model.reaction)
                 .frame(width: 48, height: 31)
                 .padding(.horizontal, 4)
-                .frame(width: wing, height: g.barHeight, alignment: g.hasNotch ? .trailing : .leading)
+                .frame(width: wing, height: g.barHeight, alignment: .leading)
 
                 Spacer(minLength: g.cameraWidth)
 
