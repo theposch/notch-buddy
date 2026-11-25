@@ -12,7 +12,7 @@ Works on any Mac with macOS 14 or later. On a MacBook it sits around the camera;
 
 ## Install
 
-1. Download the latest `Notch-Buddy-<version>.zip` from Releases.
+1. Download the latest `Notch-Buddy-<version>.zip` from [Releases](https://github.com/theposch/notch-buddy/releases/latest).
 2. Unzip it and move **Notch Buddy** to your Applications folder.
 3. Open it and click **Connect to Claude Code**. This adds Notch Buddy to Claude Code's settings file (`~/.claude/settings.json`) so Claude Code tells it what's happening. A backup of your settings is kept, and **Disconnect** in Settings puts them back.
 
