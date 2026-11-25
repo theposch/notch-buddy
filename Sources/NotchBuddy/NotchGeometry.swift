@@ -6,6 +6,8 @@ struct NotchGeometry: Equatable {
     static let wing: CGFloat = 56
     /// The open panel.
     static let openSize = CGSize(width: 470, height: 140)
+    /// Other screens have no camera to leave room for, so the open panel can be narrower.
+    static let openWidthWithoutCamera: CGFloat = 440
     static let closedRadius: CGFloat = 12
     static let openRadius: CGFloat = 24
     /// The curved shoulders where the notch meets the menu bar.
@@ -14,8 +16,9 @@ struct NotchGeometry: Equatable {
 
     /// True on a MacBook screen with a real camera notch.
     var hasNotch = false
-    /// Width of the camera area in the middle (the physical notch, or our own on other screens).
-    var cameraWidth: CGFloat = 120
+    /// Width of the camera area in the middle: the real notch on a MacBook. Other screens have
+    /// no camera, so just a small gap between Clawd and the words.
+    var cameraWidth: CGFloat = 16
     /// Height of the closed notch.
     var barHeight: CGFloat = 32
 

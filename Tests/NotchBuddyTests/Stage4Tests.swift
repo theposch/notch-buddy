@@ -130,7 +130,8 @@ struct RightSideTests {
         model.clawdWord = "Moonwalking…"
         #expect(model.rightText == "Moonwalking… · 2")
         send("PermissionRequest", session: "a")
-        #expect(model.rightText == "Needs you")
+        #expect(model.rightText?.hasPrefix("a: ") == true)      // who asks, and what
+        #expect(model.rightText == model.needsLine)
     }
 
     @Test func otherOptions() {

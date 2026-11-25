@@ -27,7 +27,28 @@ enum Prefs {
         return value == random || value.wholeMatch(of: /#[0-9A-Fa-f]{6}/) != nil ? value : clay
     }
     static var peek: Bool { UserDefaults.standard.bool(forKey: "peek") }
-    /// Clawd reacts to tests, merges and big changes. On unless switched off.
+    /// Which moments the closed notch tells you about (Settings > Messages). Starts with the important ones.
+    static var messages: Set<Notice.Kind> {
+        get {
+            guard let saved = UserDefaults.standard.stringArray(forKey: "messages") else { return Notice.Kind.important }
+            return Set(saved.compactMap(Notice.Kind.init(rawValue:)))
+        }
+        set { UserDefaults.standard.set(newValue.map(\.rawValue).sorted(), forKey: "messages") }
+    }
+
+    static func shows(_ kind: Notice.Kind) -> Bool { messages.contains(kind) }
+
+    /// The limit you set for a moment ("Usage is running low under 10%"), or its standard one.
+    static func limit(_ kind: Notice.Kind) -> Int {
+        let saved = UserDefaults.standard.integer(forKey: "limit.\(kind.rawValue)")
+        return saved > 0 ? saved : kind.limit?.standard ?? 0
+    }
+
+    static func setLimit(_ kind: Notice.Kind, _ value: Int) {
+        UserDefaults.standard.set(value, forKey: "limit.\(kind.rawValue)")
+    }
+
+    /// Clawd plays a little animation when something happens. On unless switched off.
     static var celebrations: Bool { UserDefaults.standard.object(forKey: "celebrations") as? Bool ?? true }
     static var shortcuts: Bool { UserDefaults.standard.bool(forKey: "shortcuts") }
     static var hideFinished: Bool { UserDefaults.standard.bool(forKey: "hideFinished") }

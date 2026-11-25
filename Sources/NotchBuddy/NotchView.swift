@@ -57,7 +57,7 @@ struct NotchView: View {
                 // on other screens, at the outer edge.
                 ClawdView(mode: model.welcome ? "waiting" : model.clawdMode, color: model.clawdColor, onWord: { word in
                     withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.clawdWord = word }
-                }, onHobby: { model.hobby = $0 }, step: model.lead?.activity, cheer: model.cheer)
+                }, onHobby: { model.hobby = $0 }, step: model.lead?.activity, reaction: model.reaction)
                 .frame(width: 48, height: 31)
                 .padding(.horizontal, 4)
                 .frame(width: wing, height: g.barHeight, alignment: g.hasNotch ? .trailing : .leading)
@@ -66,6 +66,10 @@ struct NotchView: View {
 
                 HStack(spacing: 6) {
                     if model.showsSpinner { Spinner() }
+                    // Several accounts: whose usage this is.
+                    if model.rightIsUsage, model.severalAccounts, let account = model.followed {
+                        AccountDot(color: account.color(among: model.accounts))
+                    }
                     Text(model.rightText ?? "")
                         .font(Font(NotchModel.wingFont))
                         .foregroundStyle(rightColor)
@@ -92,7 +96,9 @@ struct NotchView: View {
     }
 
     private var rightColor: Color {
-        if let cheer = model.cheer { return cheer.color }
+        if model.needsLine != nil { return Self.amber }
+        if model.outLine != nil { return Self.dim }
+        if let shown = model.shown { return shown.color }
         if model.rightIsUsage, let left = model.usageLeft { return Self.usageColor(left, normal: Self.clay) }
         return Self.clay
     }
@@ -108,21 +114,36 @@ struct NotchView: View {
     /// The menu bar strip, either side of the camera: usage left, then settings and Quit.
     private var topBar: some View {
         HStack(spacing: 6) {
-            if let left = model.usageLeft, let resets = model.usage?.resets {
+            if model.severalAccounts {
+                // Every account: dot, name, 5 hours left. Hover for the week.
+                ForEach(model.shownAccounts) { account in
+                    if let left = account.left {
+                        HStack(spacing: 5) {
+                            AccountDot(color: account.color(among: model.accounts))
+                            if !model.shortUsageStrip { Text(account.name).foregroundStyle(Self.dim).fixedSize() }
+                            Text("\(left)%").foregroundStyle(Self.usageColor(left, normal: .white))
+                        }
+                        .padding(.trailing, 6)
+                        .help(account.summary)
+                    }
+                }
+            } else if let left = model.usageLeft, let resets = model.usage?.resets {
+                let time = resets.formatted(date: .omitted, time: .shortened)
                 Text("\(left)% left")
                     .contentTransition(.numericText())
                     .animation(.snappy, value: left)
                     .foregroundStyle(Self.usageColor(left, normal: .white))
-                Text("resets \(resets.formatted(date: .omitted, time: .shortened))")
-                    .foregroundStyle(Self.dim)
+                    .help("Resets \(time)")
+                if !model.shortUsageStrip { Text("resets \(time)").foregroundStyle(Self.dim) }
             }
-            if let week = model.weekLeft {
+            if !model.severalAccounts, let week = model.weekLeft {
                 Text("· week").foregroundStyle(Self.dim)
                 Text("\(week)% left")
                     .contentTransition(.numericText())
                     .foregroundStyle(Self.usageColor(week, normal: .white))
             }
-            Spacer(minLength: model.geometry.cameraWidth + 16)
+            // Leave the camera clear on a MacBook; other screens have nothing to avoid.
+            Spacer(minLength: model.geometry.hasNotch ? model.geometry.cameraWidth + 16 : 16)
             HeaderButton(symbol: "gearshape", help: "Settings", action: actions.settings)
             HeaderButton(symbol: "power", help: "Quit Notch Buddy", action: actions.quit)
         }
@@ -140,6 +161,7 @@ struct NotchView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(model.rows.prefix(NotchModel.maxRows).enumerated()), id: \.element.id) { index, session in
                         SessionRow(session: session, color: model.color(of: session), now: time.date,
+                                   account: model.severalAccounts ? model.account(of: session).map { ($0.name, $0.color(among: model.accounts)) } : nil,
                                    expanded: model.hovered == session.id,
                                    details: session.details(shortcut: session.id == model.shortcutTarget?.id),
                                    answer: { choice in withAnimation { model.answer(session, choice) } },
@@ -261,6 +283,8 @@ struct SessionRow: View {
     let session: Session
     let color: String
     let now: Date
+    /// Its account's name and colour, when you have several.
+    var account: (name: String, color: String)? = nil
     /// The mouse is over it: show the whole command and the details line.
     let expanded: Bool
     /// Branch, lines changed, tests, pull request, server, cost: shown on hover.
@@ -276,7 +300,7 @@ struct SessionRow: View {
             HStack(spacing: 10) {
                 ClawdView(mode: session.clawdMode, color: color, onWord: { said in
                     withAnimation(.easeInOut(duration: 0.25)) { word = said }
-                }, step: session.activity, cheer: session.cheer)
+                }, step: session.activity, reaction: Prefs.celebrations ? session.notice : nil)
                 .frame(width: 40, height: 26)
                 .overlay(alignment: .bottomTrailing) {
                     if session.work.helpers > 0 { HelperBadge(count: session.work.helpers) }
@@ -288,14 +312,15 @@ struct SessionRow: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                         if let model = session.model { ModelBadge(name: model) }
+                        if let account { AccountChip(name: account.name, color: account.color) }
                     }
                     HStack(spacing: 6) {
-                        Text(session.cheer?.word ?? session.summary ?? label)
-                            .foregroundStyle(session.cheer?.color ?? tint)
+                        Text(session.notice?.word ?? session.summary ?? label)
+                            .foregroundStyle(session.notice?.color ?? tint)
                             .contentTransition(.opacity)
                             .fixedSize()
                         // What just happened ("91 passed"), or what Claude is doing right now.
-                        if let note = session.cheer?.text ?? (session.state == .working ? session.activity : nil) {
+                        if let note = session.notice?.detail ?? (session.state == .working ? session.activity : nil) {
                             Text(note)
                                 .foregroundStyle(.white.opacity(0.6))
                                 .layoutPriority(-1)   // the part that gets cut short when space runs out
@@ -613,6 +638,31 @@ struct Flow: Layout {
 }
 
 /// The model in a quiet little capsule next to the session's name: "Opus 5.5".
+/// The little coloured dot that marks an account.
+struct AccountDot: View {
+    let color: String
+    var body: some View { Circle().fill(Color(hex: color)).frame(width: 6, height: 6) }
+}
+
+/// "● Studio" next to a session's model, when you have several accounts.
+struct AccountChip: View {
+    let name: String
+    let color: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            AccountDot(color: color)
+            Text(name)
+        }
+        .font(.system(size: 10, weight: .medium))
+        .foregroundStyle(NotchView.dim)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(Capsule().fill(Color(white: 0.16)))
+        .fixedSize()
+    }
+}
+
 struct ModelBadge: View {
     let name: String
 

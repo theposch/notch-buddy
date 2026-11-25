@@ -103,6 +103,16 @@ final class NotchController {
         })
 
         model.onPeek = { [weak self] in self?.peek() }
+        model.terminalOrg = Account.terminalOrg()
+        let checks = LoginUsage.Source.allCases.map(LoginUsage.init)
+        for check in checks {
+            check.onUsage = { [weak model, source = check.source] usage in
+                if source == .terminal { model?.terminalOrg = Account.terminalOrg() }
+                model?.takeUsage(usage)
+            }
+        }
+        model.loginChecks = checks
+        model.onDone = { Task { for check in checks { await check.check() } } }
         shortcuts = Shortcuts { [weak self] key in
             guard let self, let session = self.model.shortcutTarget else { return }
             withAnimation { self.model.answer(session, key == .allow ? .allow : .deny) }

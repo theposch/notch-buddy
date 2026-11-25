@@ -71,7 +71,7 @@ enum StatusLine {
 }
 
 /// Usage left in the 5-hour window, as the app keeps it.
-struct Usage: Equatable {
+struct Usage: Codable, Equatable {
     static let event = "NotchBuddyUsage"
     var used: Double
     var resets: Date
@@ -79,18 +79,5 @@ struct Usage: Equatable {
     /// Whole percent left, or nil once the window has reset and we don't know yet.
     func left(at now: Date = Date()) -> Int? {
         now < resets ? max(0, Int((100 - used).rounded())) : nil
-    }
-
-    // Kept between launches.
-    /// "usage" for the 5-hour window, "week" for the weekly one.
-    static func load(_ name: String = "usage") -> Usage? {
-        let d = UserDefaults.standard
-        guard d.object(forKey: name + "Used") != nil else { return nil }
-        return Usage(used: d.double(forKey: name + "Used"), resets: Date(timeIntervalSince1970: d.double(forKey: name + "Resets")))
-    }
-
-    func save(_ name: String = "usage") {
-        UserDefaults.standard.set(used, forKey: name + "Used")
-        UserDefaults.standard.set(resets.timeIntervalSince1970, forKey: name + "Resets")
     }
 }

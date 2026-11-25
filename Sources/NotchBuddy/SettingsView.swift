@@ -14,7 +14,12 @@ struct SettingsView: View {
     @AppStorage("screen") private var screen = Prefs.ScreenChoice.builtIn.rawValue
     @AppStorage("peek") private var peek = true
     @AppStorage("celebrations") private var celebrations = true
+    @AppStorage("messages") private var messages: String = ""   // only to notice changes; Prefs reads it
+    @State private var choosingMessages = false
     @AppStorage("shortcuts") private var shortcuts = true
+    @AppStorage("loginUsage") private var loginUsage = false
+    @AppStorage("desktopUsage") private var desktopUsage = false
+    @State private var choosingAccounts = false
     @State private var openAtLogin = LoginItem.isOn
     @State private var focusNeedsAsking = Focus.needsAsking
 
@@ -31,8 +36,14 @@ struct SettingsView: View {
                 Toggle("Random for each session", isOn: Binding(
                     get: { color == Prefs.random },
                     set: { color = $0 ? Prefs.random : Prefs.clay }))
-                Picker("Right side of the notch", selection: $rightSide) {
+                Picker(selection: $rightSide) {
                     ForEach(Prefs.RightSide.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                } label: {
+                    Text("Right side of the notch")
+                    if rightSide == Prefs.RightSide.usage.rawValue, model.usageLeft == nil {
+                        Text(loginUsage || desktopUsage ? "Waiting for the first check of your usage."
+                             : "Choose where usage comes from under \u{201C}Usage and accounts\u{201D} below, or use Claude Code in the Terminal.")
+                    }
                 }
                 Picker("Show on", selection: $screen) {
                     ForEach(Prefs.ScreenChoice.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
@@ -52,9 +63,21 @@ struct SettingsView: View {
                     Text("Peek open")
                     Text("When Claude needs you, and for big news like a merge.")
                 }
+                LabeledContent {
+                    Button("Choose\u{2026}") { choosingMessages = true }
+                } label: {
+                    Text("Messages on the closed notch")
+                    Text(messagesSummary)
+                }
+                LabeledContent {
+                    Button("Set up\u{2026}") { choosingAccounts = true }
+                } label: {
+                    Text("Usage and accounts")
+                    Text(accountsSummary)
+                }
                 Toggle(isOn: $celebrations) {
-                    Text("Celebrations")
-                    Text("Clawd reacts when tests pass or fail, a pull request merges, or a big change finishes.")
+                    Text("Clawd reacts")
+                    Text("A little animation when tests pass or fail, Claude pushes, a pull request merges, and more.")
                 }
                 Toggle(isOn: $shortcuts) {
                     Text("Keyboard shortcuts")
@@ -101,6 +124,29 @@ struct SettingsView: View {
         .frame(width: 460)
         .fixedSize()
         .onChange(of: "\(color)\(rightSide)\(hideFinished)") { model.playExample() }
+        .sheet(isPresented: $choosingMessages) { MessagesView(model: model) }
+        .sheet(isPresented: $choosingAccounts) { AccountsView(model: model) }
+    }
+
+    /// "From the Terminal login and the desktop app · 2 accounts"
+    private var accountsSummary: String {
+        let sources = [loginUsage ? "the Terminal login" : nil, desktopUsage ? "the desktop app" : nil].compactMap { $0 }
+        let from = sources.isEmpty ? "Only from Claude Code while it runs in the Terminal"
+                                   : "From " + sources.joined(separator: " and ")
+        let count = model.shownAccounts.count
+        return count > 1 ? "\(from) \u{00B7} \(count) accounts" : from
+    }
+
+    /// "Important (13 of 24)", "All", "None", or "Custom (9 of 24)".
+    private var messagesSummary: String {
+        _ = messages
+        let chosen = Prefs.messages, all = Notice.Kind.listed.count
+        switch chosen {
+        case []: return "None"
+        case Set(Notice.Kind.listed): return "All \(all)"
+        case Notice.Kind.important: return "Important (\(chosen.count) of \(all))"
+        default: return "Custom (\(chosen.count) of \(all))"
+        }
     }
 }
 

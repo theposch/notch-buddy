@@ -34,6 +34,12 @@ struct Work: Equatable {
     var lastCommand: String?
     /// How many test runs so far, so two runs with the same result still count as two.
     var testRuns = 0
+    /// Git steps Claude took, counted so each new one is noticed.
+    var commits = 0
+    var pushes = 0
+    var prsOpened = 0
+    /// The number of the pull request Claude opened last.
+    var openedPR: Int?
     /// Lines changed before your latest message, to tell how big this turn's change is.
     var changedAtPrompt = 0
 
@@ -73,8 +79,19 @@ struct Work: Equatable {
                 testRuns += 1
             }
             if let url = Self.localServer(in: output) { server = url }
+            if name == "PostToolUse" { noteGit(command, output: output) }
         default:
             break
+        }
+    }
+
+    /// A commit, a push or a new pull request, from a command that worked.
+    private mutating func noteGit(_ command: String, output: String) {
+        if command.contains(/\bgit\s+(?:-C\s+\S+\s+)?commit\b/) { commits += 1 }
+        if command.contains(/\bgit\s+(?:-C\s+\S+\s+)?push\b/) { pushes += 1 }
+        if command.contains(/\bgh\s+pr\s+create\b/) {
+            prsOpened += 1
+            openedPR = output.matches(of: /\/pull\/(\d+)/).last.flatMap { Int($0.1) }
         }
     }
 
