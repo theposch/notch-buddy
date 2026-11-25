@@ -27,6 +27,8 @@ enum Prefs {
         return value == random || value.wholeMatch(of: /#[0-9A-Fa-f]{6}/) != nil ? value : clay
     }
     static var peek: Bool { UserDefaults.standard.bool(forKey: "peek") }
+    /// Clawd reacts to tests, merges and big changes. On unless switched off.
+    static var celebrations: Bool { UserDefaults.standard.object(forKey: "celebrations") as? Bool ?? true }
     static var shortcuts: Bool { UserDefaults.standard.bool(forKey: "shortcuts") }
     static var hideFinished: Bool { UserDefaults.standard.bool(forKey: "hideFinished") }
     static var rightSide: RightSide {

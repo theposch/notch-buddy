@@ -12,6 +12,8 @@ struct ClawdView: NSViewRepresentable {
     var onHobby: ((String) -> Void)? = nil
     /// What Claude is doing; when it changes, a working Clawd moves on to a new animation.
     var step: String? = nil
+    /// Something just happened (tests, a merge, …): play its animation once.
+    var cheer: Cheer? = nil
 
     func makeNSView(context: Context) -> ClawdWebView { ClawdWebView() }
 
@@ -20,6 +22,7 @@ struct ClawdView: NSViewRepresentable {
         view.onHobby = onHobby
         view.show(mode, color: color, follow: follow)
         view.moveOn(at: step)
+        view.celebrate(cheer)
     }
 
     /// A row went away: stop its Clawd so the page doesn't keep running.
@@ -38,6 +41,9 @@ final class ClawdWebView: WKWebView, WKNavigationDelegate {
     private var follow: String?
     private var outfit: String?
     private var step: String?
+    private var cheered: UUID?
+    /// A cheer that came in before the page finished loading.
+    private var waiting: String?
     private var loaded = false
 
     init() {
@@ -74,10 +80,26 @@ final class ClawdWebView: WKWebView, WKNavigationDelegate {
         if loaded, newStep != nil { evaluateJavaScript("nextStep()") }
     }
 
+    /// Plays a cheer's animation once; the page then goes back to what fits the mode.
+    /// A Clawd that's still loading (the notch just peeked open) plays it once he's ready.
+    func celebrate(_ cheer: Cheer?) {
+        guard let cheer, cheer.id != cheered else { return }
+        cheered = cheer.id
+        waiting = cheer.animation
+        if loaded { playWaiting() }
+    }
+
+    private func playWaiting() {
+        guard let animation = waiting else { return }
+        waiting = nil
+        evaluateJavaScript("celebrate('\(animation)')")
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard !loaded else { return }
         loaded = true
         tellPage()
+        playWaiting()
     }
 
     private func tellPage() {

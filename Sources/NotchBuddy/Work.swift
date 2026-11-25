@@ -29,7 +29,16 @@ struct Work: Equatable {
     var server: URL?
     var todos: Todos?
     var helpers = 0
+    /// Most helpers at once since they last all finished.
+    var helperPeak = 0
     var lastCommand: String?
+    /// How many test runs so far, so two runs with the same result still count as two.
+    var testRuns = 0
+    /// Lines changed before your latest message, to tell how big this turn's change is.
+    var changedAtPrompt = 0
+
+    /// Lines added and removed since your latest message.
+    var changedThisTurn: Int { added + removed - changedAtPrompt }
 
     /// "+212 −38 · 7 files"
     var linesText: String? {
@@ -40,10 +49,14 @@ struct Work: Equatable {
     mutating func note(_ name: String, tool: String, event: [String: Any]) {
         let input = event["tool_input"] as? [String: Any] ?? [:]
         switch (name, tool) {
+        case ("UserPromptSubmit", _):
+            changedAtPrompt = added + removed
         case ("SubagentStart", _):
             helpers += 1
+            helperPeak = max(helperPeak, helpers)
         case ("SubagentStop", _):
             helpers = max(0, helpers - 1)
+            if helpers == 0 { helperPeak = 0 }
         case ("PreToolUse", "TodoWrite"):
             todos = Self.todos(input)
         case ("PostToolUse", "Edit"), ("PostToolUse", "MultiEdit"), ("PostToolUse", "Write"), ("PostToolUse", "NotebookEdit"):
@@ -55,7 +68,10 @@ struct Work: Equatable {
             let command = input["command"] as? String ?? ""
             lastCommand = command
             let output = Self.output(event)
-            if Self.runsTests(command) { tests = Self.tests(in: output, failed: name == "PostToolUseFailure") }
+            if Self.runsTests(command) {
+                tests = Self.tests(in: output, failed: name == "PostToolUseFailure")
+                testRuns += 1
+            }
             if let url = Self.localServer(in: output) { server = url }
         default:
             break

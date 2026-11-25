@@ -81,7 +81,8 @@ final class NotchController {
         watchers.append(NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
+            // A moment later, in case macOS says this while a view is being drawn.
+            Task { @MainActor in
                 guard let self else { return }
                 if self.shortcuts?.isOn != Prefs.shortcuts { self.shortcuts?.turn(on: Prefs.shortcuts) }
                 guard NotchGeometry.bestScreen()?.frame != self.screenFrame else { return }
@@ -101,7 +102,7 @@ final class NotchController {
             }
         })
 
-        model.onNeedsYou = { [weak self] in self?.peek() }
+        model.onPeek = { [weak self] in self?.peek() }
         shortcuts = Shortcuts { [weak self] key in
             guard let self, let session = self.model.shortcutTarget else { return }
             withAnimation { self.model.answer(session, key == .allow ? .allow : .deny) }
@@ -177,7 +178,7 @@ final class NotchController {
         }
     }
 
-    /// Claude needs you: open for a few seconds, like a call arriving on a phone, then close
+    /// Claude needs you, or something worth celebrating happened: open for a few seconds, like a call arriving on a phone, then close
     /// again unless the mouse came over.
     private func peek() {
         guard Prefs.peek, !model.isOpen, !model.welcome else { return }

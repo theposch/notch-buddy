@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("hideFinished") private var hideFinished = false
     @AppStorage("screen") private var screen = Prefs.ScreenChoice.builtIn.rawValue
     @AppStorage("peek") private var peek = true
+    @AppStorage("celebrations") private var celebrations = true
     @AppStorage("shortcuts") private var shortcuts = true
     @State private var openAtLogin = LoginItem.isOn
     @State private var focusNeedsAsking = Focus.needsAsking
@@ -47,7 +48,14 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Peek when Claude needs you", isOn: $peek)
+                Toggle(isOn: $peek) {
+                    Text("Peek open")
+                    Text("When Claude needs you, and for big news like a merge.")
+                }
+                Toggle(isOn: $celebrations) {
+                    Text("Celebrations")
+                    Text("Clawd reacts when tests pass or fail, a pull request merges, or a big change finishes.")
+                }
                 Toggle(isOn: $shortcuts) {
                     Text("Keyboard shortcuts")
                     Text("\(Shortcuts.allowText) allows and \(Shortcuts.denyText) denies the top request, from any app.")

@@ -12,6 +12,7 @@ struct NotchView: View {
     static let green = Color(red: 0x8F / 255, green: 0xBF / 255, blue: 0x6A / 255)
     static let orange = Color(red: 0xF0 / 255, green: 0x9A / 255, blue: 0x3E / 255)
     static let red = Color(red: 0xE5 / 255, green: 0x48 / 255, blue: 0x4D / 255)
+    static let purple = Color(red: 0.71, green: 0.54, blue: 0.88)
     static let dim = Color(red: 0x9A / 255, green: 0x9A / 255, blue: 0x95 / 255)
 
     /// Orange under 20% left, red under 10%.
@@ -56,7 +57,7 @@ struct NotchView: View {
                 // on other screens, at the outer edge.
                 ClawdView(mode: model.welcome ? "waiting" : model.clawdMode, color: model.clawdColor, onWord: { word in
                     withAnimation(.spring(duration: 0.32, bounce: 0.18)) { model.clawdWord = word }
-                }, onHobby: { model.hobby = $0 }, step: model.lead?.activity)
+                }, onHobby: { model.hobby = $0 }, step: model.lead?.activity, cheer: model.cheer)
                 .frame(width: 48, height: 31)
                 .padding(.horizontal, 4)
                 .frame(width: wing, height: g.barHeight, alignment: g.hasNotch ? .trailing : .leading)
@@ -91,6 +92,7 @@ struct NotchView: View {
     }
 
     private var rightColor: Color {
+        if let cheer = model.cheer { return cheer.color }
         if model.rightIsUsage, let left = model.usageLeft { return Self.usageColor(left, normal: Self.clay) }
         return Self.clay
     }
@@ -274,7 +276,7 @@ struct SessionRow: View {
             HStack(spacing: 10) {
                 ClawdView(mode: session.clawdMode, color: color, onWord: { said in
                     withAnimation(.easeInOut(duration: 0.25)) { word = said }
-                }, step: session.activity)
+                }, step: session.activity, cheer: session.cheer)
                 .frame(width: 40, height: 26)
                 .overlay(alignment: .bottomTrailing) {
                     if session.work.helpers > 0 { HelperBadge(count: session.work.helpers) }
@@ -288,16 +290,17 @@ struct SessionRow: View {
                         if let model = session.model { ModelBadge(name: model) }
                     }
                     HStack(spacing: 6) {
-                        Text(session.summary ?? label)
-                            .foregroundStyle(tint)
+                        Text(session.cheer?.word ?? session.summary ?? label)
+                            .foregroundStyle(session.cheer?.color ?? tint)
                             .contentTransition(.opacity)
                             .fixedSize()
-                        if session.state == .working, let activity = session.activity {
-                            Text(activity)
+                        // What just happened ("91 passed"), or what Claude is doing right now.
+                        if let note = session.cheer?.text ?? (session.state == .working ? session.activity : nil) {
+                            Text(note)
                                 .foregroundStyle(.white.opacity(0.6))
                                 .layoutPriority(-1)   // the part that gets cut short when space runs out
                                 .transition(.opacity)
-                                .id(activity)
+                                .id(note)
                         }
                         Text(timeText)
                             .foregroundStyle(NotchView.dim)
@@ -458,7 +461,7 @@ struct Outcome: View {
     }
 
     static func color(_ pr: PullRequest) -> Color {
-        if pr.merged { return Color(red: 0.71, green: 0.54, blue: 0.88) }
+        if pr.merged { return NotchView.purple }
         switch pr.checks {
         case .passed: return NotchView.green
         case .failed: return NotchView.red

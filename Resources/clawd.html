@@ -4144,6 +4144,89 @@ Object.assign(VERB_ANIM, {"Waddling": "waddle", "Burrowing": "burrow", "Catapult
 Object.assign(VERB_ANIM, {"Beaming": "ufo", "Channeling": "ufo", "Swooping": "swoop", "Zigzagging": "zigzag", "Unraveling": "yarn", "Cascading": "surf", "Flowing": "surf", "Ebbing": "surf", "Misting": "umbrella", "Precipitating": "umbrella", "Nebulizing": "umbrella", "Fluttering": "flutter", "Calculating": "calc", "Reticulating": "calc", "Hashing": "calc", "Tomfoolering": "jester", "Shenaniganing": "jester", "Hullaballooing": "jester", "Flibbertigibbeting": "jester", "Lollygagging": "lollipop", "Dilly-dallying": "lollipop", "Gesticulating": "gesticulate", "Elucidating": "gesticulate", "Improvising": "sax", "Whirring": "propeller", "Perambulating": "pram", "Combobulating": "reassemble", "Recombobulating": "reassemble", "Coalescing": "reassemble", "Infusing": "tea", "Boondoggling": "machine", "Fiddle-faddling": "machine", "Whatchamacalliting": "machine", "Inferring": "detective", "Determining": "detective", "Accomplishing": "flag", "Actualizing": "flag", "Actioning": "flag", "Effecting": "flag", "Symbioting": "highfive"});
 Object.assign(VERB_ANIM, {"Actioning": "w-actioning", "Actualizing": "w-actualizing", "Effecting": "w-effecting", "Bootstrapping": "w-bootstrapping", "Forging": "w-forging", "Forming": "w-forming", "Baking": "w-baking", "Blanching": "w-blanching", "Bunning": "w-bunning", "Caramelizing": "w-caramelizing", "Drizzling": "w-drizzling", "Flambéing": "w-flambeing", "Garnishing": "w-garnishing", "Julienning": "w-julienning", "Kneading": "w-kneading", "Leavening": "w-leavening", "Marinating": "w-marinating", "Onioning": "w-onioning", "Proofing": "w-proofing", "Sautéing": "w-sauteing", "Seasoning": "w-seasoning", "Simmering": "w-simmering", "Stewing": "w-stewing", "Tempering": "w-tempering", "Whisking": "w-whisking", "Zesting": "w-zesting", "Channeling": "w-channeling", "Beboppin'": "w-beboppin", "Choreographing": "w-choreographing", "Grooving": "w-grooving", "Jitterbugging": "w-jitterbugging", "Razzle-dazzling": "w-razzle-dazzling", "Razzmatazzing": "w-razzmatazzing", "Shimmying": "w-shimmying", "Sock-hopping": "w-sock-hopping", "Vibing": "w-vibing", "Befuddling": "w-befuddling", "Discombobulating": "w-discombobulating", "Flummoxing": "w-flummoxing", "Kerfuffling": "w-kerfuffling", "Topsy-turvying": "w-topsy-turvying", "Billowing": "w-billowing", "Bloviating": "w-bloviating", "Pontificating": "w-pontificating", "Ruminating": "w-ruminating", "Fiddle-faddling": "w-fiddle-faddling", "Whatchamacalliting": "w-whatchamacalliting", "Brewing": "w-brewing", "Crystallizing": "w-crystallizing", "Fermenting": "w-fermenting", "Ionizing": "w-ionizing", "Nucleating": "w-nucleating", "Osmosing": "w-osmosing", "Percolating": "w-percolating", "Sublimating": "w-sublimating", "Synthesizing": "w-synthesizing", "Transmogrifying": "w-transmogrifying", "Transmuting": "w-transmuting", "Hashing": "w-hashing", "Reticulating": "w-reticulating", "Cascading": "w-cascading", "Ebbing": "w-ebbing", "Cerebrating": "w-cerebrating", "Envisioning": "w-envisioning", "Imagining": "w-imagining", "Manifesting": "w-manifesting", "Churning": "w-churning", "Crunching": "w-crunching", "Coalescing": "w-coalescing", "Combobulating": "w-combobulating", "Cogitating": "w-cogitating", "Considering": "w-considering", "Contemplating": "w-contemplating", "Deliberating": "w-deliberating", "Mulling": "w-mulling", "Thinking": "w-thinking", "Composing": "w-composing", "Crafting": "w-crafting", "Creating": "w-creating", "Doodling": "w-doodling", "Embellishing": "w-embellishing", "Computing": "w-computing", "Doing": "w-doing", "Processing": "w-processing", "Working": "w-working", "Cultivating": "w-cultivating", "Germinating": "w-germinating", "Pollinating": "w-pollinating", "Deciphering": "w-deciphering", "Newspapering": "w-newspapering", "Determining": "w-determining", "Dilly-dallying": "w-dilly-dallying", "Elucidating": "w-elucidating", "Enchanting": "w-enchanting", "Transfiguring": "w-transfiguring", "Herding": "w-herding", "Mustering": "w-mustering", "Orchestrating": "w-orchestrating", "Wrangling": "w-wrangling", "Flibbertigibbeting": "w-flibbertigibbeting", "Hullaballooing": "w-hullaballooing", "Shenaniganing": "w-shenaniganing", "Gallivanting": "w-gallivanting", "Gitifying": "w-gitifying", "Incubating": "w-incubating", "Nesting": "w-nesting", "Meandering": "w-meandering", "Wandering": "w-wandering", "Unfurling": "w-unfurling", "Misting": "w-misting", "Nebulizing": "w-nebulizing", "Puttering": "w-puttering", "Quantumizing": "w-quantumizing", "Scampering": "w-scampering", "Scurrying": "w-scurrying", "Undulating": "w-undulating", "Wibbling": "w-wibbling", "Swirling": "w-swirling", "Twisting": "w-twisting", "Whirlpooling": "w-whirlpooling"});
 
+/* ---------- Celebrations for real moments ---------- */
+const CONF = ["#F0997B", "#85B7EB", "#5DCAA5", "#FAC775", "#AFA9EC", "#ED93B1"];
+function burst(c, t, cx, cy, n) {   // a puff of confetti from one point
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI * (0.05 + rnd(i) * 0.9), sp = 8 + rnd(i + 40) * 10;
+    const x = cx + Math.cos(a) * sp * t, y = cy + Math.sin(a) * sp * t + 12 * t * t;
+    if (y < SH && t < 1.6) alpha(c, 1.6 - t, () => R(c, x, y, 1, 1 + (i % 2), CONF[i % CONF.length]));
+  }
+}
+function tinyBug(c, x, y, f) {
+  R(c, x, y, 3, 2, "#2c2c2a"); R(c, x + 1, y - 1, 1, 1, "#E24B4A");
+  R(c, x - 1, y + (f ? 1 : 2), 1, 1, "#2c2c2a"); R(c, x + 3, y + (f ? 2 : 1), 1, 1, "#2c2c2a");
+}
+
+// Tests pass after failing: Clawd chases the bug, squashes it, and cheers.
+defNew("fixed", "Got it!", "done", "Tests pass after failing", (c, t) => {
+  const p = t % 3.2, X = 4, Y = Y0;
+  if (p < 1.2) {                       // the bug scuttles, Clawd watches it
+    const bx = Math.round(34 - p * 8);
+    tinyBug(c, bx, 20, st(t, 10, 2));
+    clawd(c, X, Y, { eyes: "right", armL: "out", armR: "out" });
+  } else if (p < 1.6) {                // jump up and over
+    const q = (p - 1.2) / 0.4, jx = Math.round(X + q * 18), jy = Math.round(Y - Math.sin(q * Math.PI) * 6);
+    tinyBug(c, 24, 20, st(t, 10, 2));
+    clawd(c, jx, jy, { eyes: "down", legs: 3, armL: "up", armR: "up" });
+  } else {                             // squash, then cheer
+    const q = p - 1.6;
+    clawd(c, X + 18, Y - (q > 0.3 ? Math.round(Math.abs(Math.sin(q * 6)) * 2) : 0), { eyes: "happy", squash: q < 0.15 ? 2 : 0, armL: q > 0.3 ? "up" : "out", armR: q > 0.3 ? "up" : "out" });
+    if (q < 0.5) [[-3, 0], [17, 0], [-2, -3], [16, -3]].forEach(([dx, dy]) => R(c, X + 18 + dx, 19 + dy, 1, 1, "#f5f4ed"));
+    if (q > 0.3) glyph(c, G.check, 6, 6, "#5DCAA5");
+  }
+});
+
+// Tests fail: a facepalm and a sigh.
+defNew("facepalm", "Facepalm", "error", "Tests failed", (c, t) => {
+  const p = t % 2.8, X = X0, Y = Y0, palm = p > 0.5 && p < 2.3;
+  clawd(c, X, Y, { eyes: palm ? "closed" : "wide", armL: palm ? "none" : "down", armR: "down", squash: palm ? 1 : 0 });
+  if (palm) {   // the arm comes up and a darker hand covers the eyes
+    const HAND = "#a9553c";
+    R(c, X - 1, Y + 4, 2, 3, HAND); R(c, X, Y + 2, 2, 2, HAND); R(c, X + 2, Y + 2, 6, 2, HAND); R(c, X + 3, Y + 4, 4, 1, HAND);
+  }
+  if (p > 0.9 && p < 2.2) { const q = (p - 0.9) / 1.3; alpha(c, 1 - q, () => R(c, X + 16 + Math.round(q * 4), Y + 4 - Math.round(q * 3), 2, 1, "#B5D4F4")); }
+  if (palm) { const x = 30, y = 6; [[0,0],[2,0],[1,1],[0,2],[2,2]].forEach(([dx, dy]) => R(c, x + dx, y + dy, 1, 1, "#E24B4A")); }
+});
+
+// Pull request merged: two branches flow together into Clawd, then confetti.
+defNew("merged", "Merged!", "done", "Pull request merged", (c, t) => {
+  const p = t % 3.4, X = 22, Y = Y0, PUR = "#AFA9EC", GRN = "#5DCAA5";
+  line(c, 1, 9, 10, 9, PUR); line(c, 10, 9, 15, 15, PUR);
+  line(c, 1, 21, 10, 21, GRN); line(c, 10, 21, 15, 16, GRN);
+  line(c, 15, 15, 20, 15, "#f5f4ed"); line(c, 15, 16, 20, 16, "#f5f4ed");
+  const q = Math.min(1, p / 1.1);
+  if (p < 1.1) {
+    const along = (y0) => q < 0.6 ? [1 + q / 0.6 * 9, y0] : [10 + (q - 0.6) / 0.4 * 5, y0 + (15.5 - y0) * (q - 0.6) / 0.4];
+    const [ax, ay] = along(9), [bx, by] = along(21);
+    R(c, ax - 1, ay - 1, 2, 2, PUR); R(c, bx - 1, by - 1, 2, 2, GRN);
+  }
+  const hop = p > 1.1 && p < 1.6 ? Math.round(Math.sin((p - 1.1) / 0.5 * Math.PI) * 4) : 0;
+  clawd(c, X, Y - hop, { eyes: p > 1.1 ? "happy" : "left", armL: p > 1.1 ? "up" : "out", armR: p > 1.1 ? "up" : "out", legs: hop ? 3 : 0 });
+  if (p > 1.1) burst(c, p - 1.1, X + 8, Y - 2, 18);
+});
+
+// Many lines changed: Clawd carries a big stack of pages and drops it with a thud.
+defNew("bigone", "Big one!", "done", "A big change finished", (c, t) => {
+  const p = t % 3, X = 6, Y = Y0, down = p > 1.2;
+  const sx = down ? 26 : X + 2, sy = down ? 14 : Y - 9;
+  for (let i = 0; i < 7; i++) R(c, sx + (i % 2), sy + i, 10, 1, i % 2 ? "#d3d1c7" : "#f5f4ed");
+  if (!down) clawd(c, X + Math.round(p * 4), Y, { eyes: "up", armL: "up", armR: "up", legs: st(t, 6, 2) + 1 });
+  else {
+    clawd(c, X + 2, Y, { eyes: "happy", armL: "out", armR: "out" });
+    const q = p - 1.2;
+    if (q < 0.4) [[24, 20], [37, 20], [23, 18], [38, 18]].forEach(([x, y]) => R(c, x, y, 1, 1, "#b4b2a9"));
+    if (q > 0.4) for (let i = 0; i < 2; i++) { const r = (q * 0.8 + i / 2) % 1; alpha(c, 1 - r, () => R(c, X + 18 + r * 2, Y + 2 - r * 6, 1, 2, "#85B7EB")); }
+  }
+});
+
+/* Called from Swift when something good or bad just happened (tests, a merge, a big change):
+   plays that animation once, then goes back to whatever fits the mode. */
+window.celebrate = id => {
+  const a = byId[id]; if (!a) return;
+  current = a; clock = 0; shownAt = 0; nextSwap = 4.5;
+};
+
 const byId = Object.fromEntries(A.map(a => [a.id, a]));
 const pick = l => l[Math.floor(Math.random() * l.length)];
 

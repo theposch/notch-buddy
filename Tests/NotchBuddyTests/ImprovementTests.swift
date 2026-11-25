@@ -243,7 +243,7 @@ struct FunTests {
 
     @Test func peeksOnlyForRealSessions() {
         var peeks = 0
-        model.onNeedsYou = { peeks += 1 }
+        model.onPeek = { peeks += 1 }
         send("PermissionRequest")
         send("Notification")          // still needs you: no second peek
         #expect(peeks == 1)

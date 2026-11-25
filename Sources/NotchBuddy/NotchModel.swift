@@ -35,6 +35,8 @@ struct Session: Identifiable {
     var pr: PullRequest?
     /// What it has cost so far, when Claude's status line says (in Terminal).
     var cost: Double?
+    /// Something that just happened, shown for a few seconds: "Fixed it! Tests pass again".
+    var cheer: Cheer?
     /// Waiting on you to review a plan, not to allow a single step.
     var plan = false
     /// How full its conversation is, 0–100.
@@ -220,7 +222,9 @@ final class NotchModel {
         timers.append(NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.prefs += 1 }
+            // macOS can say this in the middle of drawing a view (Settings), when changing
+            // what views read isn't allowed. So redraw a moment later instead.
+            Task { @MainActor in self?.prefs += 1 }
         })
         timers.append(Task { [weak self] in
             while !Task.isCancelled {
@@ -278,8 +282,10 @@ final class NotchModel {
     var usageOut: Bool { usageLeft == 0 }
     var resetTime: String? { usage.map { $0.resets.formatted(date: .omitted, time: .shortened) } }
 
-    /// Called when a session starts needing you, so the notch can peek.
-    var onNeedsYou: (() -> Void)?
+    /// Called when a session starts needing you, or there's big news, so the notch can peek.
+    var onPeek: (() -> Void)?
+    /// The latest thing that happened, for the closed notch: Clawd's animation and the word on the right.
+    private(set) var cheer: Cheer?
 
     // MARK: What Clawd and the wings show
 
@@ -306,6 +312,7 @@ final class NotchModel {
 
     /// The right wing, following the "right side" setting.
     var rightText: String? {
+        if let cheer { return cheer.word }
         let word = clawdWord.isEmpty ? nil : clawdWord
         let usageText = usageLeft.map { "\($0)%" }
         switch rightSide {
@@ -325,7 +332,7 @@ final class NotchModel {
     var rightIsUsage: Bool { rightText != nil && rightText == usageLeft.map { "\($0)%" } }
 
     /// The "Sessions" option spins while any session is working.
-    var showsSpinner: Bool { rightSide == .sessions && sessions.contains { $0.state == .working } }
+    var showsSpinner: Bool { cheer == nil && rightSide == .sessions && sessions.contains { $0.state == .working } }
 
     static let wingFont = NSFont.systemFont(ofSize: 13, weight: .semibold)
 
@@ -404,7 +411,11 @@ final class NotchModel {
 
         // Helpers starting and stopping only change the "+2" on Clawd.
         if name == "SubagentStart" || name == "SubagentStop" {
-            if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].work.note(name, tool: "", event: event) }
+            if let i = sessions.firstIndex(where: { $0.id == id }) {
+                let before = sessions[i]
+                sessions[i].work.note(name, tool: "", event: event)
+                cheer(Cheer.after(before, sessions[i]), for: id)
+            }
             reply?.cancel()
             return
         }
@@ -481,6 +492,7 @@ final class NotchModel {
         session.canAnswer = replies[id] != nil
         count(session, before: current)
         store(session, was: was)
+        cheer(Cheer.after(current, session), for: id)
         if newBranch { lookUpPullRequests() }
     }
 
@@ -488,7 +500,7 @@ final class NotchModel {
     private func store(_ session: Session, was: Session.State?) {
         if session.state == .waiting, was != .waiting {
             if live { Prefs.play(.needsYou) }
-            if session.id != Self.exampleID { onNeedsYou?() }
+            if session.id != Self.exampleID { onPeek?() }
         }
         if session.state == .done, was != .done {
             celebrate()
@@ -613,9 +625,31 @@ final class NotchModel {
             Task { [weak self] in
                 let pr = await PullRequest.look(in: folder)
                 guard let self else { return }
+                var news: (Cheer, String)?
                 for i in self.sessions.indices where self.sessions[i].place.folder == folder && self.sessions[i].pr != pr {
+                    if news == nil, let cheer = Cheer.after(self.sessions[i].pr, pr) { news = (cheer, self.sessions[i].id) }
                     withAnimation { self.sessions[i].pr = pr }
                 }
+                if let (cheer, id) = news { self.cheer(cheer, for: id) }
+            }
+        }
+    }
+
+    /// Something happened worth reacting to: the row and the closed notch say it for a few
+    /// seconds while Clawd plays its animation, and big news peeks the notch open.
+    func cheer(_ cheer: Cheer?, for id: String) {
+        guard let cheer, id != Self.exampleID, Prefs.celebrations else { return }
+        withAnimation(.snappy) {
+            if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].cheer = cheer }
+            self.cheer = cheer
+        }
+        if cheer.opensNotch { onPeek?() }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Cheer.seconds))
+            guard let self else { return }
+            withAnimation(.snappy) {
+                for i in self.sessions.indices where self.sessions[i].cheer?.id == cheer.id { self.sessions[i].cheer = nil }
+                if self.cheer?.id == cheer.id { self.cheer = nil }
             }
         }
     }
