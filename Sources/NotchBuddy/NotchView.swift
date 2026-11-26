@@ -132,6 +132,10 @@ struct NotchView: View {
                                 .contentTransition(.numericText())
                                 .animation(.snappy, value: left)
                                 .foregroundStyle(Self.usageColor(left, normal: .white))
+                            // At this pace it runs out before it resets: say when.
+                            if let pace = model.paceLabel(account) {
+                                Text(pace).foregroundStyle(Self.orange).padding(.leading, -1)
+                            }
                         }
                         .help(model.severalAccounts ? "\(account.name): \(account.summary)" : account.summary)
                     }
@@ -162,36 +166,17 @@ struct NotchView: View {
             // Redraw every second so the working time keeps counting.
             TimelineView(.periodic(from: .now, by: 1)) { time in
                 let width = model.openWidth
-                let shown = Array(model.rows.prefix(NotchModel.maxRows))
+                let items = model.items
                 VStack(spacing: 0) {
-                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, session in
-                        let hovered = model.hovered == session.id
-                        let account = model.severalAccounts ? model.account(of: session).map { (name: $0.name, color: $0.color(among: model.accounts), email: $0.email) } : nil
-                        let details = model.showsDetails(session) ? model.details(for: session, now: time.date) : []
-                        let detailHeight = model.detailHeight(of: session, width: width)
-                        Group {
-                            if session.state == .waiting {
-                                RequestCard(session: session, color: model.color(of: session), now: time.date, account: account,
-                                            commandLines: session.commandLines(perLine: NotchModel.Card.charactersPerLine(width: width)),
-                                            details: details, detailHeight: detailHeight,
-                                            answer: { choice in withAnimation { model.answer(session, choice) } },
-                                            open: { withAnimation { model.open(session) } })
-                            } else {
-                                // A hairline between rows, but not beside the one under the mouse or under a card.
-                                let above = index > 0 ? shown[index - 1] : nil
-                                SessionRow(session: session, color: model.color(of: session), now: time.date, account: account,
-                                           hovered: hovered, details: details, detailHeight: detailHeight,
-                                           divider: above != nil && above?.state != .waiting && !hovered && model.hovered != above?.id)
-                            }
-                        }
-                        .modifier(Stagger(index: index))
-                        .onTapGesture { withAnimation { model.open(session) } }
-                        .contextMenu { RowMenu(session: session, clear: { withAnimation { model.clear(session) } }) }
-                        .onHover { inside in
-                            withAnimation(.easeOut(duration: 0.15)) {
-                                if inside { model.hovered = session.id }
-                                else if model.hovered == session.id { model.hovered = nil }
-                            }
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        switch item {
+                        case .project(let key, let name, let sessions, let folded):
+                            ProjectHeader(name: name, sessions: sessions, folded: folded)
+                                .modifier(Stagger(index: index))
+                                .onTapGesture { withAnimation(.snappy(duration: 0.22)) { model.toggle(project: key) } }
+                        case .session(let session, let first):
+                            sessionView(session, above: index > 0 ? items[index - 1] : nil, first: first, width: width, now: time.date)
+                                .modifier(Stagger(index: index))
                         }
                     }
                 }
@@ -199,6 +184,41 @@ struct NotchView: View {
                 .padding(.top, NotchModel.listTop)
             }
         }
+    }
+
+    /// One session in the list: a row, or a card while it needs you.
+    @ViewBuilder private func sessionView(_ session: Session, above: NotchModel.Item?, first: Bool, width: CGFloat, now: Date) -> some View {
+        let hovered = model.hovered == session.id
+        let account = model.severalAccounts ? model.account(of: session).map { (name: $0.name, color: $0.color(among: model.accounts), email: $0.email) } : nil
+        let details = model.showsDetails(session) ? model.details(for: session, now: now) : []
+        let detailHeight = model.detailHeight(of: session, width: width)
+        Group {
+            if session.state == .waiting {
+                RequestCard(session: session, color: model.color(of: session), now: now, account: account,
+                            commandLines: session.commandLines(perLine: NotchModel.Card.charactersPerLine(width: width)),
+                            details: details, detailHeight: detailHeight,
+                            answer: { choice in withAnimation { model.answer(session, choice) } },
+                            open: { withAnimation { model.open(session) } })
+            } else {
+                SessionRow(session: session, color: model.color(of: session), now: now, account: account,
+                           hovered: hovered, details: details, detailHeight: detailHeight,
+                           divider: divides(session, from: above, first: first, hovered: hovered))
+            }
+        }
+        .onTapGesture { withAnimation { model.open(session) } }
+        .contextMenu { RowMenu(session: session, clear: { withAnimation { model.clear(session) } }) }
+        .onHover { inside in
+            withAnimation(.easeOut(duration: 0.15)) {
+                if inside { model.hovered = session.id }
+                else if model.hovered == session.id { model.hovered = nil }
+            }
+        }
+    }
+
+    /// A hairline above a row, but not at the top, under a card or a heading, or beside the row under the mouse.
+    private func divides(_ session: Session, from above: NotchModel.Item?, first: Bool, hovered: Bool) -> Bool {
+        guard !first, !hovered, case .session(let other, _)? = above else { return false }
+        return other.state != .waiting && model.hovered != other.id
     }
 
     /// Nothing running: a bigger Clawd doing what suits the time of day.
@@ -341,6 +361,47 @@ struct Spinner: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(NotchView.clay)
                 .frame(width: 14, height: 14)
+        }
+    }
+}
+
+/// A project's heading, when its sessions are grouped under it: its name, how many, and a dot per
+/// session in the colour of its state. Click to fold its sessions away.
+struct ProjectHeader: View {
+    let name: String
+    let sessions: [Session]
+    let folded: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8.5, weight: .bold))
+                .rotationEffect(.degrees(folded ? 0 : 90))
+                .frame(width: 10)
+            Text(name).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+            Text("\(sessions.count)").font(.system(size: 11.5).monospacedDigit()).foregroundStyle(NotchView.tertiary)
+            Spacer(minLength: 8)
+            // Folded, the dots are all you see of its sessions.
+            if folded {
+                HStack(spacing: 5) {
+                    ForEach(sessions) { session in Circle().fill(Self.color(session.state)).frame(width: 6, height: 6) }
+                }
+            }
+        }
+        .foregroundStyle(NotchView.secondary)
+        .padding(.leading, 12)
+        .padding(.trailing, 14)
+        .frame(height: NotchModel.projectHeight)
+        .contentShape(Rectangle())
+        .help(folded ? "Show its \(sessions.count) sessions" : "Fold its sessions away")
+    }
+
+    static func color(_ state: Session.State) -> Color {
+        switch state {
+        case .waiting: NotchView.amber
+        case .working: NotchView.clay
+        case .done: NotchView.green
+        case .ready: NotchView.tertiary
         }
     }
 }

@@ -60,6 +60,23 @@ enum Prefs {
         ScreenChoice(rawValue: UserDefaults.standard.string(forKey: "screen") ?? "") ?? .builtIn
     }
 
+    /// Folding a project's sessions under its name (Settings > Sessions).
+    enum Grouping: String, CaseIterable {
+        case never, many, always
+
+        var title: String {
+            switch self {
+            case .never: "Never"
+            case .many: "When there are many"
+            case .always: "Always"
+            }
+        }
+    }
+
+    static var grouping: Grouping {
+        Grouping(rawValue: UserDefaults.standard.string(forKey: "groupByProject") ?? "") ?? .many
+    }
+
     /// Which screen the notch sits on.
     enum ScreenChoice: String, CaseIterable {
         case builtIn, external

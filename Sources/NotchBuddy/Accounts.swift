@@ -10,6 +10,8 @@ struct Account: Codable, Equatable, Identifiable {
     var from: String?
     /// The email address it's logged in with, when Claude says. Only kept on this Mac.
     var email: String?
+    /// What was used when, in this 5-hour window, to work out your pace.
+    var readings: [Usage.Reading]?
 
     var left: Int? { usage?.left() }
 
@@ -17,8 +19,32 @@ struct Account: Codable, Equatable, Identifiable {
     var summary: String {
         var parts: [String] = email.map { [$0] } ?? []
         if let usage, let left { parts.append("5 hours: \(left)% left, resets \(usage.resets.formatted(date: .omitted, time: .shortened))") }
+        if let pace = paceText() { parts.append(pace) }
         if let week, let left = week.left() { parts.append("Week: \(left)% left") }
         return parts.joined(separator: " · ")
+    }
+
+    /// When this account runs out at its current pace, if that's before its window resets.
+    func runsOut(now: Date = Date(), measuredOnly: Bool = false) -> Date? {
+        guard let usage else { return nil }
+        return Usage.runsOut(readings: readings ?? [], used: usage.used, resets: usage.resets, now: now, measuredOnly: measuredOnly)
+    }
+
+    /// "At this pace, out around 3:40 PM"
+    func paceText(now: Date = Date()) -> String? {
+        runsOut(now: now).map { "At this pace, out around \($0.formatted(date: .omitted, time: .shortened))" }
+    }
+
+    /// Takes in a new 5-hour figure: keeps it, and remembers it for the pace. Readings from an
+    /// earlier window, or older than the window, are dropped.
+    mutating func take(_ new: Usage, now: Date = Date()) {
+        var kept = usage?.resets == new.resets ? readings ?? [] : []
+        kept.removeAll { now.timeIntervalSince($0.at) > Usage.window || $0.used > new.used }
+        // One a minute is plenty.
+        if let last = kept.last, now.timeIntervalSince(last.at) < 60 { kept.removeLast() }
+        kept.append(Usage.Reading(at: now, used: new.used))
+        readings = Array(kept.suffix(300))
+        usage = new
     }
 
     // MARK: Your names and colours for it

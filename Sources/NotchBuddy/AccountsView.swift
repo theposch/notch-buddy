@@ -139,6 +139,9 @@ struct AccountCard: View {
                 }
                 Text(account.summary.isEmpty ? "Waiting for the next check of its usage." : Self.limits(account))
                     .font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1)
+                if let pace = account.paceText() {
+                    Text(pace + ", before it resets.").font(.system(size: 11.5, weight: .medium)).foregroundStyle(NotchView.orange).lineLimit(1)
+                }
             }
             Spacer(minLength: 8)
             Toggle("Show", isOn: Binding(get: { account.shown }, set: { set("hidden", $0 ? nil : true) }))
@@ -151,8 +154,10 @@ struct AccountCard: View {
 
     /// "5 hours: 72% left, resets 3:50 PM · Week: 88% left", without the email the line above shows.
     static func limits(_ account: Account) -> String {
-        guard let email = account.email, account.summary.hasPrefix(email) else { return account.summary }
-        return String(account.summary.dropFirst(email.count)).trimmingCharacters(in: CharacterSet(charactersIn: " \u{00B7}"))
+        var parts: [String] = []
+        if let usage = account.usage, let left = account.left { parts.append("5 hours: \(left)% left, resets \(usage.resets.formatted(date: .omitted, time: .shortened))") }
+        if let left = account.week?.left() { parts.append("Week: \(left)% left") }
+        return parts.joined(separator: " \u{00B7} ")
     }
 
     private func edit() {

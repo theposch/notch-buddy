@@ -131,6 +131,9 @@ struct Session: Identifiable {
         return "\(minutes / (60 * 24))d"
     }
 
+    /// The project it works in: its folder. Sessions in the same folder can be shown as one group.
+    var project: String { place.folder ?? folder }
+
     /// Whether it gets a row. Busy sessions always do. Idle ones don't when finished sessions
     /// are hidden, and a quiet one doesn't until it does something.
     func shows(hidingIdle: Bool) -> Bool {
@@ -269,6 +272,14 @@ final class NotchModel {
     var terminalOrg: String? { didSet { if terminalOrg != oldValue { nameAccounts() } } }
     /// Email addresses we've been told, by account. They're saved with the accounts.
     @ObservationIgnored private var emails: [String: String] = [:]
+    /// Accounts are kept between launches. Tests that only look at one model can switch that off,
+    /// so they don't leave accounts behind for the tests running beside them.
+    @ObservationIgnored var keepsAccounts = true
+    private func saveAccounts() { if keepsAccounts { Account.save(accounts) } }
+    /// For those tests: start from no accounts, whatever was saved.
+    func forgetAccounts() { accounts = [] }
+    /// The window each account was last warned in that it's running out at this pace.
+    @ObservationIgnored private var warnedPace: [String: Date] = [:]
     /// The account the desktop app's sessions run on, as the last one told us. Kept between launches.
     var desktopOrg: String? { didSet { if desktopOrg != oldValue { nameAccounts() } } }
     /// What got done today, for the empty notch.
@@ -495,6 +506,10 @@ final class NotchModel {
 
     static let rowHeight: CGFloat = 56
     static let maxRows = 8
+    /// A project's heading, when its sessions are grouped.
+    static let projectHeight: CGFloat = 28
+    /// "When there are many": this many rows or more.
+    static let manyRows = 5
     /// The details line under a row: this tall per line, plus a little air below.
     static let detailLineHeight: CGFloat = 16
     static let detailBottom: CGFloat = 8
@@ -567,12 +582,67 @@ final class NotchModel {
 
     var openSize: CGSize {
         let width = openWidth
-        let shown = rows.prefix(Self.maxRows)
+        let shown = items
         let empty: CGFloat = today.line == nil || usageOut ? 124 : 140
-        let list = shown.reduce(Self.listTop + Self.listBottom) { $0 + height(of: $1, width: width) }
+        let list = shown.reduce(Self.listTop + Self.listBottom) { total, item in
+            switch item {
+            case .project: total + Self.projectHeight
+            case .session(let session, _): total + height(of: session, width: width)
+            }
+        }
         let body = welcome ? 128 : (shown.isEmpty ? empty : list)
         return CGSize(width: width, height: geometry.barHeight + body)
     }
+
+    // MARK: Grouping by project
+
+    /// One line of the open notch: a session, or the heading of a project whose sessions are grouped.
+    enum Item: Identifiable {
+        case project(key: String, name: String, sessions: [Session], folded: Bool)
+        /// `first`: the first row under a heading, which needs no hairline above it.
+        case session(Session, first: Bool)
+
+        var id: String {
+            switch self {
+            case .project(let key, _, _, _): "project:" + key
+            case .session(let session, _): session.id
+            }
+        }
+    }
+
+    /// Projects whose sessions are folded away under their heading.
+    private(set) var folded: Set<String> = []
+
+    func toggle(project key: String) {
+        if folded.contains(key) { folded.remove(key) } else { folded.insert(key) }
+    }
+
+    /// What the open notch lists, top to bottom. Sessions that need you always come first, on their own.
+    /// The rest are grouped under their project when you asked for that (Settings > Sessions) and at
+    /// least two share one; a project with a single session stays a plain row.
+    var items: [Item] {
+        _ = prefs
+        let shown = Array(rows.prefix(Self.maxRows))
+        let calm = shown.filter { $0.state != .waiting }
+        let shared = Dictionary(grouping: calm, by: \.project).filter { $0.value.count > 1 }
+        let grouping = groupingOverride ?? Prefs.grouping
+        let groups = !shared.isEmpty && (grouping == .always || (grouping == .many && shown.count >= Self.manyRows))
+        guard groups else { return shown.map { .session($0, first: false) } }
+
+        var list: [Item] = shown.filter { $0.state == .waiting }.map { .session($0, first: false) }
+        var done: Set<String> = []
+        for session in calm where !done.contains(session.project) {   // projects in the order of their newest session
+            done.insert(session.project)
+            guard let sessions = shared[session.project] else { list.append(.session(session, first: false)); continue }
+            let isFolded = folded.contains(session.project)
+            list.append(.project(key: session.project, name: session.folder, sessions: sessions, folded: isFolded))
+            if !isFolded { list += sessions.enumerated().map { .session($1, first: $0 == 0) } }
+        }
+        return list
+    }
+
+    /// Tests choose; otherwise it's the "Group by project" setting.
+    var groupingOverride: Prefs.Grouping?
 
     // MARK: Updating
 
@@ -648,8 +718,14 @@ final class NotchModel {
     /// The figures alone, without a hint that usage needs your OK: a ring and a number per account.
     /// (`short` no longer changes them; whose they are and when they reset is on hover.)
     private func figuresWidth(short: Bool) -> CGFloat {
-        let pieces = shownAccounts.compactMap { account in account.left.map { Self.usageRing + 6 + Self.topWidth("\($0)%") } }
+        let pieces = shownAccounts.compactMap { account in
+            account.left.map { Self.usageRing + 6 + Self.topWidth("\($0)%") + (paceLabel(account).map { 5 + Self.topWidth($0) } ?? 0) }
+        }
         return pieces.reduce(0, +) + CGFloat(max(0, pieces.count - 1)) * Self.usageGap
+    }
+    /// "out 3:40 PM" beside an account's usage, when at this pace it runs out before it resets.
+    func paceLabel(_ account: Account, now: Date = Date()) -> String? {
+        account.runsOut(now: now).map { "out " + $0.formatted(date: .omitted, time: .shortened) }
     }
     static let usageRing: CGFloat = 14
     static let usageGap: CGFloat = 14
@@ -690,7 +766,7 @@ final class NotchModel {
 
     /// The 5-hour and weekly usage of one account, from the status line or a login.
     /// The account is the one the event names, else its session's, else the Terminal login's.
-    func takeUsage(_ event: [String: Any]) {
+    func takeUsage(_ event: [String: Any], now: Date = Date()) {
         let session = (event["session_id"] as? String).flatMap { id in all.first { $0.id == id } }
         let id = event[Account.key] as? String ?? session.map(org(of:)) ?? terminalOrg ?? ""
         if id != "" { accounts.removeAll { $0.id == "" } }   // heard before we knew whose it was
@@ -701,16 +777,17 @@ final class NotchModel {
         var droppedTo: Int?
         if let used = event["used_percentage"] as? Double, let resets = event["resets_at"] as? Double {
             let before = account.left ?? 100
-            account.usage = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
+            account.take(Usage(used: used, resets: Date(timeIntervalSince1970: resets)), now: now)
             if before >= lowUsage, let left = account.left, left < lowUsage, account.shown { droppedTo = left }
         }
         if let used = event["week_used"] as? Double, let resets = event["week_resets"] as? Double {
             account.week = Usage(used: used, resets: Date(timeIntervalSince1970: resets))
         }
         if let i = accounts.firstIndex(where: { $0.id == id }) { accounts[i] = account } else { accounts.append(account) }
-        Account.save(accounts)
+        saveAccounts()
         if from == LoginUsage.Source.desktop.title { noteDesktop(id) }
         nameAccounts()
+        warnAboutPace(id, now: now)
         // Just dropped under your limit: one soft sound and a message (Clawd starts sweating by himself).
         if let left = droppedTo {
             if live { Prefs.play(.usageLow) }
@@ -724,6 +801,19 @@ final class NotchModel {
         guard let email, let org, !email.isEmpty, !org.isEmpty, emails[org] != email else { return }
         emails[org] = email
         nameAccounts()
+    }
+
+    /// At the pace of the last while the account runs out within half an hour, before its window resets:
+    /// say so, once a window. Only on a pace we've watched (not a guess from the window's average), and
+    /// not once usage is already low, which has its own message.
+    func warnAboutPace(_ id: String, now: Date = Date()) {
+        guard let account = accounts.first(where: { $0.id == id }), account.shown, let usage = account.usage,
+              let left = account.left, left >= lowUsage,
+              let out = account.runsOut(now: now, measuredOnly: true), out.timeIntervalSince(now) <= 30 * 60,
+              warnedPace[id] != usage.resets else { return }
+        warnedPace[id] = usage.resets
+        let time = out.formatted(date: .omitted, time: .shortened)
+        post([Notice(kind: .usagePace, word: severalAccounts ? "\(account.name) out by \(time)" : "Out by \(time)")], for: nil)
     }
 
     /// A desktop app session said which account it runs on.
@@ -751,7 +841,7 @@ final class NotchModel {
         }
         guard named != accounts else { return }
         accounts = named
-        Account.save(accounts)
+        saveAccounts()
     }
 
     /// What one of Claude's notifications means for its row.
@@ -1040,18 +1130,19 @@ final class NotchModel {
                 post([Notice(kind: .usageReset, word: severalAccounts ? "\(accounts[i].name): fresh 5 hours" : "Fresh 5 hours")], for: nil)
             }
             accounts[i].usage = nil
-            Account.save(accounts)
+            accounts[i].readings = nil
+            saveAccounts()
         }
         // Last week's figure says nothing about this week.
         for i in accounts.indices {
             guard let week = accounts[i].week, now >= week.resets else { continue }
             accounts[i].week = nil
-            Account.save(accounts)
+            saveAccounts()
         }
         // An account with nothing left to show that isn't logged in anywhere: you've switched away from it.
         let before = accounts.count
         accounts.removeAll { $0.usage == nil && $0.week == nil && $0.id != terminalOrg && $0.id != desktopOrg }
-        if accounts.count != before { Account.save(accounts) }
+        if accounts.count != before { saveAccounts() }
 
         let hidingIdle = hidesIdle
         for session in all where session.id != Self.exampleID {

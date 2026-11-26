@@ -76,6 +76,35 @@ struct Usage: Codable, Equatable {
     var used: Double
     var resets: Date
 
+    /// How much was used at one moment, kept to work out your pace.
+    struct Reading: Codable, Equatable {
+        var at: Date
+        var used: Double
+    }
+
+    /// How long the 5-hour window is.
+    static let window: TimeInterval = 5 * 3600
+
+    /// When you'd run out at your current pace, if that's before the window resets. Nil when you
+    /// won't, or when there's too little to go on.
+    /// The pace is that of the last 45 minutes (usage comes in bursts, so the recent past says more
+    /// than the whole window); with less than 10 minutes of readings, the window's average so far.
+    /// `measuredOnly`: don't fall back on the average; say nothing until the pace has been watched.
+    static func runsOut(readings: [Reading], used: Double, resets: Date, now: Date = Date(), measuredOnly: Bool = false) -> Date? {
+        guard used < 100, now < resets else { return nil }
+        let recent = readings.filter { $0.at <= now && now.timeIntervalSince($0.at) <= 45 * 60 && $0.used <= used }
+        var pace: Double?   // percent a second
+        if let first = recent.first, now.timeIntervalSince(first.at) >= 10 * 60 {
+            pace = (used - first.used) / now.timeIntervalSince(first.at)
+        } else if !measuredOnly {
+            let elapsed = now.timeIntervalSince(resets.addingTimeInterval(-window))
+            if elapsed >= 20 * 60 { pace = used / elapsed }
+        }
+        guard let pace, pace > 0 else { return nil }
+        let out = now.addingTimeInterval((100 - used) / pace)
+        return out < resets ? out : nil
+    }
+
     /// Whole percent left, or nil once the window has reset and we don't know yet.
     func left(at now: Date = Date()) -> Int? {
         now < resets ? max(0, Int((100 - used).rounded())) : nil

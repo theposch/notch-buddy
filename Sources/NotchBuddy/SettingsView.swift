@@ -565,6 +565,7 @@ struct LookPane: View {
 
 struct RowsPane: View {
     let model: NotchModel
+    @AppStorage("groupByProject") private var grouping = Prefs.Grouping.many.rawValue
     private static let previewWidth: CGFloat = 470
 
     var body: some View {
@@ -610,6 +611,12 @@ struct RowsPane: View {
         }
 
         SettingsGroup {
+            SettingsRow(label: "Group by project", text: "Sessions in the same folder sit under its name. Click the name to fold them away.") {
+                Picker("Group by project", selection: $grouping) {
+                    ForEach(Prefs.Grouping.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }
+                .labelsHidden().fixedSize()
+            }
             SettingsRow(label: "Always show details", text: "Without hovering. Rows get taller.") {
                 Toggle("Always show details", isOn: Binding(get: { RowPrefs.always() }, set: { RowPrefs.setAlways($0) }))
                     .labelsHidden().toggleStyle(.switch)

@@ -3,8 +3,9 @@
 A little helper that lives in your Mac's notch and keeps an eye on Claude Code for you.
 
 - **See every session at a glance.** Open the notch to see what each Claude Code session is doing, which ones are done, and which ones need you.
-- **Answer without switching windows.** Allow or deny a step right from the notch, or jump straight to the conversation.
-- **Know your limits.** Usage left in your 5-hour and weekly limits, for one Claude account or several.
+- **Answer without switching windows.** Allow or deny a step right from the notch, or click a session to jump to it: the conversation in the Claude app, the tab in Terminal or iTerm2, the pane in WezTerm, kitty or tmux, the project window in Cursor, VS Code, Zed or a JetBrains editor.
+- **Know your limits.** Usage left in your 5-hour and weekly limits, for one Claude account or several, and when you'd run out at your current pace.
+- **Keep many sessions tidy.** Sessions in the same project fold under its name.
 - **Hear about what matters.** Short messages on the closed notch ("Tests failed", "Plan ready", "Back at 7:00 PM"), and you choose which ones.
 - **Clawd keeps you company.** Clawd works when Claude works, cheers when tests pass, and naps when your usage runs out.
 

@@ -17,7 +17,7 @@ struct Notice: Equatable {
         // Your project
         case preview, bigChange
         // Limits
-        case usageLow, usageOut, usageReset, memoryFull, makingRoom
+        case usageLow, usagePace, usageOut, usageReset, memoryFull, makingRoom
         // Clawd only, never on the closed notch: they happen too often to be news.
         case testsPassed, helpersDone
     }
@@ -56,7 +56,7 @@ struct Notice: Equatable {
         case .merged: "merged"
         case .preview: "web"
         case .bigChange: "bigone"
-        case .usageLow, .memoryFull: "sweat"
+        case .usageLow, .usagePace, .memoryFull: "sweat"
         case .usageReset: "coffee"
         case .makingRoom: "compact"
         case .helpersDone: "highfive"
@@ -179,7 +179,7 @@ extension Notice.Kind {
     var tone: Notice.Tone {
         switch self {
         case .askToRun, .question, .plan, .stillWaiting: .needs
-        case .error, .testsBroke, .usageLow, .memoryFull: .bad
+        case .error, .testsBroke, .usageLow, .usagePace, .memoryFull: .bad
         case .todosDone, .finished, .longFinished, .testsFixed, .checksPassed, .merged, .usageReset, .testsPassed: .good
         case .started, .committed, .pushed, .prOpened, .preview, .bigChange, .helpersDone: .progress
         case .stopped, .usageOut, .makingRoom: .quiet
@@ -220,6 +220,7 @@ extension Notice.Kind {
         case .preview: "A local preview starts"
         case .bigChange: "A big change finishes"
         case .usageLow: "Usage is running low"
+        case .usagePace: "Usage will run out before it resets"
         case .usageOut: "Usage runs out"
         case .usageReset: "Usage resets"
         case .memoryFull: "The conversation is nearly full"
@@ -275,6 +276,7 @@ extension Notice.Kind {
         case .preview: "localhost:5173 ready"
         case .bigChange: "Big one!"
         case .usageLow: "\(Prefs.limit(self))% left"
+        case .usagePace: "Out by 3:40 PM"
         case .usageOut: "Back at 7:00 PM"
         case .usageReset: "Fresh 5 hours"
         case .memoryFull: "Memory \(Prefs.limit(self))% full"
@@ -286,7 +288,7 @@ extension Notice.Kind {
 
     /// The ones that start switched on: things you'd act on, or want to know right away.
     static let important: Set<Notice.Kind> = [.askToRun, .question, .plan, .stillWaiting, .finished, .longFinished, .error,
-                                              .testsBroke, .testsFixed, .merged, .usageLow, .usageOut, .memoryFull]
+                                              .testsBroke, .testsFixed, .merged, .usageLow, .usagePace, .usageOut, .memoryFull]
 
     /// Settings groups them by topic.
     static let topics: [(title: String, note: String?, kinds: [Notice.Kind])] = [
@@ -295,7 +297,7 @@ extension Notice.Kind {
         ("Tests", nil, [.testsBroke, .testsFixed]),
         ("Git and GitHub", nil, [.committed, .pushed, .prOpened, .checksPassed, .merged]),
         ("Your project", nil, [.preview, .bigChange]),
-        ("Limits", nil, [.usageLow, .usageOut, .usageReset, .memoryFull, .makingRoom]),
+        ("Limits", nil, [.usageLow, .usagePace, .usageOut, .usageReset, .memoryFull, .makingRoom]),
     ]
 
     /// Everything Settings lists (the Clawd-only ones aren't there).
