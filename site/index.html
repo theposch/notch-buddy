@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notch Buddy</title>
+<meta name="description" content="See every Claude Code session from your Mac's notch, and answer Claude without leaving what you're doing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* The home page: the notch up top is the demo. Under it, what the app does, one piece of notch at a time. */
+main.home { max-width: 1080px; display: flex; flex-direction: column; }
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: clamp(150px, 26vh, 250px) 0 clamp(48px, 8vh, 96px); }
+.hero .lede { max-width: 34ch; }
+.ctas { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
+
+.feat { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px clamp(32px, 6vw, 72px); align-items: center; padding: clamp(44px, 7vw, 92px) 0; border-top: 1px solid var(--line); }
+.feat.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.feat.flip .say { order: 2; }
+.say h2 { margin: 0; font: 700 clamp(28px, 3.3vw, 40px)/1.1 var(--sys); letter-spacing: -0.03em; text-wrap: balance; }
+.say p { margin: 12px 0 0; color: var(--muted); font-size: clamp(17px, 1.5vw, 19px); line-height: 1.45; max-width: 38ch; }
+.say p + p { margin-top: 10px; }
+.say kbd { font: 500 .88em var(--sys); padding: 1px 6px; border-radius: 6px; background: var(--soft); white-space: nowrap; }
+.say a { text-underline-offset: 3px; }
+
+/* A piece of the notch, lifted out: black, like the real thing, in both appearances. */
+.spec { background: #000; border-radius: 24px; padding: 8px; box-shadow: 0 0 0 1px var(--line); min-width: 0; }
+.spec + .spec, .seg + .spec { margin-top: 12px; }
+.spec .card { margin: 2px; }
+.stack { min-width: 0; }
+/* The closed notch, hanging from a strip of menu bar. */
+.strip { position: relative; height: 96px; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--line); overflow: hidden; margin-bottom: 12px; }
+.strip::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 36px; background: var(--soft); }
+.mini { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 36px; display: grid; grid-template-columns: auto 88px auto; align-items: center; background: #000; color: #fff; border-radius: 0 0 13px 13px; padding: 0 6px; }
+.mini::before, .mini::after { content: ""; position: absolute; top: 0; width: 8px; height: 8px; }
+.mini::before { right: 100%; background: radial-gradient(circle at 0 100%, transparent 7.5px, #000 8px); }
+.mini::after { left: 100%; background: radial-gradient(circle at 100% 100%, transparent 7.5px, #000 8px); }
+.mini canvas { width: 54px; height: 35px; }
+.mini .lens { justify-self: center; width: 7px; height: 7px; border-radius: 50%; background: #0d0e12; box-shadow: inset 0 0 0 1px #17181d; }
+.mini .pill { font: 600 13px/1 var(--sys); background: var(--yellow); color: var(--on-yellow); border-radius: 999px; padding: 5px 10px; margin: 0 8px 0 2px; white-space: nowrap; }
+.strip figcaption { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 13px; color: var(--muted); }
+/* Usage, drawn large. */
+.usage-big { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.acct { display: flex; align-items: center; gap: 14px; padding: 18px 16px; border-radius: 16px; background: var(--tile); min-width: 0; }
+.acct .dial { position: relative; flex: none; display: grid; place-items: center; }
+.acct .dial b { position: absolute; font: 600 15px/1 var(--sys); font-variant-numeric: tabular-nums; }
+.acct .who { min-width: 0; }
+.acct .who b { display: block; font: 600 15px/1.3 var(--sys); }
+.acct .who span { display: block; font: 400 13px/1.4 var(--sys); color: var(--label2); }
+/* The preset switch above the sample row. */
+.seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--soft); border-radius: 10px; padding: 3px; max-width: 100%; }
+.seg button { border: 0; background: none; border-radius: 8px; height: 30px; padding: 0 16px; font: 500 14px/1 var(--sys); color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 0 0 .5px var(--line), 0 1px 2px rgba(0, 0, 0, .14); }
+/* The top of the open notch with an update waiting. */
+.topline { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 14px 0 16px; font: 500 14px/1 var(--sys); font-variant-numeric: tabular-nums; }
+.topline span { display: inline-flex; align-items: center; gap: 7px; }
+.topline .sp { flex: 1; }
+.topline .upd { border: 0; border-radius: 999px; height: 26px; padding: 0 13px; font: 600 13px/1 var(--sys); background: var(--clay); color: var(--on-clay); cursor: pointer; min-width: 74px; }
+.topline .upd[disabled] { background: var(--fill); color: #fff; cursor: default; }
+.topline .ok { color: var(--green); gap: 6px; }
+.topline .tool { width: 17px; height: 17px; fill: none; stroke: var(--label2); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.spec .note { margin: 0; padding: 4px 16px 14px; font: 400 13px/1.4 var(--sys); color: var(--label2); }
+
+/* The Settings window, as a picture. It follows your appearance, like the real one. */
+.win { display: grid; grid-template-columns: 178px minmax(0, 1fr); border-radius: 14px; overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 30px 60px -34px rgba(0, 0, 0, .45); font: 400 13px/1.35 var(--sys); letter-spacing: 0; min-width: 0; }
+.win .side { background: var(--soft); border-right: 1px solid var(--line); padding: 12px 9px; display: flex; flex-direction: column; gap: 2px; }
+.win .lights { display: flex; gap: 7px; padding: 2px 4px 14px; }
+.win .lights i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; } .win .lights i:nth-child(2) { background: #febc2e; } .win .lights i:nth-child(3) { background: #28c840; }
+.win .nav { display: flex; align-items: center; gap: 8px; border-radius: 7px; padding: 5px 7px 5px 6px; white-space: nowrap; overflow: hidden; }
+.win .nav.on { background: var(--clay); color: #fff; }
+.win .nav i { width: 20px; height: 20px; border-radius: 6px; background: var(--c); flex: none; }
+.win .pane { padding: 18px 20px 20px; min-width: 0; }
+.win h3 { margin: 0; font: 700 20px/1.15 var(--sys); letter-spacing: -.018em; }
+.win .pd { margin: 2px 0 14px; color: var(--muted); }
+.win .pv { position: relative; height: 104px; border-radius: 11px; background: #5b7c9c; overflow: hidden; margin-bottom: 14px; }
+.win .pv .mini { height: 30px; grid-template-columns: auto 64px auto; border-radius: 0 0 11px 11px; }
+.win .pv .mini canvas { width: 46px; height: 30px; }
+.win .pv .mini .word { font: 600 12px/1 var(--sys); color: var(--clay); margin: 0 10px 0 4px; white-space: nowrap; }
+.win .pv small { position: absolute; left: 0; right: 0; bottom: 9px; text-align: center; font-size: 11px; color: rgba(255, 255, 255, .88); }
+.win .box { border: 1px solid var(--line); border-radius: 10px; }
+.win .rw { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 6px 10px 6px 12px; }
+.win .rw + .rw { border-top: 1px solid var(--line); }
+.win .rw small { display: block; font-size: 11.5px; color: var(--muted); }
+.win .sw { width: 34px; height: 20px; border-radius: 10px; background: var(--clay); position: relative; flex: none; }
+.win .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.win .sws { display: flex; gap: 7px; }
+.win .sws i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); }
+.win .sws i:first-child { box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--c); }
+
+/* Clawd's days off, drifting past. */
+.clawd { border-top: 1px solid var(--line); padding: clamp(44px, 7vw, 92px) 0 clamp(28px, 4vw, 48px); text-align: center; }
+.clawd .say { display: flex; flex-direction: column; align-items: center; }
+.clawd .say p { max-width: 46ch; }
+.parade { overflow: hidden; margin: 36px calc(-1 * max(20px, env(safe-area-inset-left, 0px))) 0; padding-top: 6px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.track { display: flex; gap: clamp(18px, 2.4vw, 34px); width: max-content; animation: drift 110s linear infinite; }
+.parade:hover .track, .parade:focus-within .track { animation-play-state: paused; }
+@keyframes drift { to { transform: translateX(-50%); } }
+.hobby { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; }
+.hobby canvas { width: 72px; height: 47px; transition: transform .2s; }
+.hobby span { font: 400 10px/1 "Silkscreen", monospace; letter-spacing: .04em; text-transform: uppercase; opacity: .7; transition: opacity .2s; white-space: nowrap; }
+.hobby:hover canvas { transform: translateY(-3px); }
+.hobby:hover span, .hobby[aria-pressed="true"] span { opacity: 1; color: var(--ink); }
+
+/* Getting it. */
+.get { border-top: 1px solid var(--line); padding: clamp(44px, 7vw, 92px) 0 clamp(56px, 8vw, 104px); display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px clamp(32px, 6vw, 72px); align-items: start; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; padding-top: 0; }
+.steps li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; font: 600 15px/1 var(--sys); font-variant-numeric: tabular-nums; }
+.steps b { font-weight: 600; }
+.steps span { display: block; color: var(--muted); font-size: 16px; }
+.gate { margin: 18px 0 0; padding: 14px 16px; border-radius: 14px; background: var(--soft); font-size: 15px; line-height: 1.45; color: var(--muted); }
+.gate b { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 820px) {
+  .feat, .feat.flip, .get { grid-template-columns: minmax(0, 1fr); }
+  .feat.flip .say { order: 0; }
+  .say p { max-width: 52ch; }
+}
+@media (max-width: 520px) {
+  .hero { padding-top: 120px; }
+  .btn { flex: 1 1 100%; }
+  .ctas { width: 100%; max-width: 340px; }
+  .usage-big { grid-template-columns: minmax(0, 1fr); }
+  .win { grid-template-columns: minmax(0, 1fr); }
+  .win .side { display: none; }
+  .seg button { padding: 0 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .track { animation: none; } .parade { overflow-x: auto; } .hobby canvas, .hobby span { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="menubar">
+  <div class="side">
+    <svg class="apple" viewBox="0 0 14 17" fill="currentColor" aria-hidden="true"><path d="M11.6 9c0-2 1.7-3 1.8-3-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.8-2.8-.7C3 4.4 1.7 5.2 1 6.5c-1.5 2.6-.4 6.4 1 8.5.7 1 1.5 2.1 2.6 2 1-.1 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.6 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.6ZM9.6 3c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2Z"/></svg>
+    <a class="menu app" href="./" aria-current="page">Notch Buddy</a>
+    <a class="menu" href="https://github.com/theposch/notch-buddy" target="_blank" rel="noopener">GitHub</a>
+    <a class="menu" href="clawd.html">View</a>
+    <a class="menu" href="help.html">Help</a>
+  </div>
+  <div class="side">
+    <svg class="ico batt" viewBox="0 0 25 12" fill="none" stroke="currentColor" aria-hidden="true"><rect x=".5" y=".5" width="21" height="11" rx="3" opacity=".5"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor" stroke="none"/><path d="M23 4v4" stroke-linecap="round" opacity=".5"/></svg>
+    <svg class="ico" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true"><path d="M9 13.2 6.6 10.6a3.4 3.4 0 0 1 4.8 0L9 13.2Zm-4.3-4.5L3.2 7.1a8.2 8.2 0 0 1 11.6 0l-1.5 1.6a6 6 0 0 0-8.6 0ZM1.6 5.4 0 3.8a12.8 12.8 0 0 1 18 0l-1.6 1.6a10.5 10.5 0 0 0-14.8 0Z"/></svg>
+    <svg class="ico" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="1.5" width="16" height="4.6" rx="2.3"/><circle cx="13.4" cy="3.8" r="1.2" fill="currentColor" stroke="none"/><rect x="1" y="8" width="16" height="4.6" rx="2.3"/><circle cx="4.6" cy="10.3" r="1.2" fill="currentColor" stroke="none"/></svg>
+    <span><span id="date">Tue 24 Nov</span>&nbsp;&nbsp;<span id="time">9:41</span></span>
+  </div>
+  <div class="notch" id="notch" tabindex="0" role="button" aria-expanded="false" aria-label="Notch Buddy. Hover or press Enter to open.">
+    <div class="bar">
+      <div class="usage" id="usage"></div>
+      <div class="wl"><canvas id="clawd" aria-hidden="true"></canvas></div><i class="lens"></i><div class="wr" id="status" aria-live="polite"></div>
+      <div class="tools" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M6.86 3.44L7.04 1.57L8.96 1.57L9.14 3.44L10.42 3.97L11.87 2.77L13.23 4.13L12.03 5.58L12.56 6.86L14.43 7.04L14.43 8.96L12.56 9.14L12.03 10.42L13.23 11.87L11.87 13.23L10.42 12.03L9.14 12.56L8.96 14.43L7.04 14.43L6.86 12.56L5.58 12.03L4.13 13.23L2.77 11.87L3.97 10.42L3.44 9.14L1.57 8.96L1.57 7.04L3.44 6.86L3.97 5.58L2.77 4.13L4.13 2.77L5.58 3.97Z"/><circle cx="8" cy="8" r="2.1"/></svg><svg viewBox="0 0 16 16"><path d="M8 2v5.2M4.6 4.2a5.2 5.2 0 1 0 6.8 0"/></svg></div>
+    </div>
+    <div class="panel"><div><div class="rows nb" id="rows"></div></div></div>
+  </div>
+</header>
+
+<!-- The home page. The notch in the menu bar is the demo; the sections below show it one piece at a time. -->
+<main class="home">
+  <section class="hero">
+    <h1>Notch Buddy</h1>
+    <p class="lede">Claude Code status, but cuter. See every session from your Mac's notch, and answer Claude without leaving what you're doing.</p>
+    <p class="hint" id="hint">Hover the notch.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/theposch/notch-buddy/releases/latest" target="_blank" rel="noopener">Download for Mac</a>
+      <a class="btn quiet" href="https://github.com/theposch/notch-buddy" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        View on GitHub</a>
+    </div>
+    <p class="small">Free and open source. Version 0.3, macOS 14 or later.</p>
+  </section>
+
+  <section class="feat">
+    <div class="say">
+      <h2>One calm line per session</h2>
+      <p>Each session gets a row: Clawd, a name, and what Claude is doing right now.</p>
+      <p>Hover a row for the rest. The branch, the lines changed, the tests, the pull request. A finished session shows how Claude's answer began, so you know whether to go and read it.</p>
+    </div>
+    <div class="spec nb" id="spec-rows" aria-label="Two session rows from the notch"></div>
+  </section>
+
+  <section class="feat flip">
+    <div class="say">
+      <h2>A card when Claude needs you</h2>
+      <p>The session that is waiting on you opens as a card. It shows the whole command and three answers: Deny, Always allow, Allow.</p>
+      <p>Closed, the notch says so in a yellow pill. Or skip the notch and press <kbd>⌥⌘Y</kbd> from any app.</p>
+    </div>
+    <div class="stack">
+      <figure class="strip" style="margin:0 0 12px">
+        <div class="mini"><canvas data-anim="flagjump" data-color="#6AB7D9" aria-hidden="true"></canvas><i class="lens"></i><span class="pill">Run npm test?</span></div>
+        <figcaption>The closed notch, when Claude is waiting</figcaption>
+      </figure>
+      <div class="spec nb" id="spec-card" aria-label="A request card from the notch. The buttons work."></div>
+    </div>
+  </section>
+
+  <section class="feat">
+    <div class="say">
+      <h2>Usage you can read at a glance</h2>
+      <p>A ring and a number for each Claude account, at the top of the notch. Hover for when it resets and how the week is going.</p>
+      <p>When you run low, Clawd starts to sweat. When you run out, he naps until it resets.</p>
+    </div>
+    <div class="spec nb">
+      <div class="usage-big">
+        <div class="acct"><div class="dial" id="dial-work"></div><div class="who"><b>Work</b><span>Resets 3:50 PM</span><span>Week: 61% left</span></div></div>
+        <div class="acct"><div class="dial" id="dial-home"></div><div class="who"><b>Home</b><span>Resets 6:10 PM</span><span>Week: 88% left</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="feat flip">
+    <div class="say">
+      <h2>You choose what a row shows</h2>
+      <p>Model, account, branch, tests, pull request, cost. Put each one on the row, on hover, or nowhere.</p>
+      <p>Or pick a preset and get on with your day. Try them here.</p>
+    </div>
+    <div class="stack">
+      <div class="seg" role="group" aria-label="Preset" id="presets">
+        <button type="button" data-p="minimal" aria-pressed="false">Minimal</button>
+        <button type="button" data-p="balanced" aria-pressed="true">Balanced</button>
+        <button type="button" data-p="everything" aria-pressed="false">Everything</button>
+      </div>
+      <div class="spec nb" id="spec-choose" aria-label="A session row that follows the preset above" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="feat">
+    <div class="say">
+      <h2>Settings that look like a Mac</h2>
+      <p>Eight sections in a sidebar. Look, Sessions, Messages and Shortcuts each open with a live piece of the notch, so you see what a choice does as you make it.</p>
+      <p>Open Notch Buddy again while it's running and Settings appears.</p>
+    </div>
+    <div class="win" role="img" aria-label="The Settings window, on its Look section">
+      <div class="side">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="nav"><i style="--c:#8e8e93"></i>General</div>
+        <div class="nav on"><i style="--c:rgba(255,255,255,.28)"></i>Look</div>
+        <div class="nav"><i style="--c:#0a84ff"></i>Sessions</div>
+        <div class="nav"><i style="--c:#ff453a"></i>Messages</div>
+        <div class="nav"><i style="--c:#ff375f"></i>Sounds</div>
+        <div class="nav"><i style="--c:#30b14a"></i>Usage and accounts</div>
+        <div class="nav"><i style="--c:#5e5ce6"></i>Shortcuts</div>
+        <div class="nav"><i style="--c:#ff9f0a"></i>About</div>
+      </div>
+      <div class="pane">
+        <h3>Look</h3>
+        <p class="pd">How Clawd and the closed notch look, and how they behave.</p>
+        <div class="pv">
+          <div class="mini"><canvas data-anim="type" data-color="#D97757" aria-hidden="true"></canvas><i class="lens"></i><span class="word" id="win-word">Smooshing…</span></div>
+          <small>Claude is working</small>
+        </div>
+        <div class="box">
+          <div class="rw"><div>Colour</div><div class="sws"><i style="--c:#D97757"></i><i style="--c:#E8C66A"></i><i style="--c:#8FBF6A"></i><i style="--c:#6AB7D9"></i><i style="--c:#B48AE0"></i></div></div>
+          <div class="rw"><div>Clawd reacts<small>A little animation when tests pass, Claude pushes, and more.</small></div><i class="sw"></i></div>
+          <div class="rw"><div>Peek open<small>When Claude needs you, and for big news like a merge.</small></div><i class="sw"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="feat flip">
+    <div class="say">
+      <h2>Updates in one click</h2>
+      <p>When a new version is out, an Update button appears in the notch. One click downloads it, checks it, installs it and restarts.</p>
+      <p>Nothing is downloaded until you click.</p>
+    </div>
+    <div class="spec nb">
+      <div class="topline">
+        <span id="up-work"></span><span id="up-home"></span><span class="sp"></span>
+        <span id="up-slot"><button type="button" class="upd" id="up-btn">Update</button></span>
+        <svg class="tool" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.86 3.44L7.04 1.57L8.96 1.57L9.14 3.44L10.42 3.97L11.87 2.77L13.23 4.13L12.03 5.58L12.56 6.86L14.43 7.04L14.43 8.96L12.56 9.14L12.03 10.42L13.23 11.87L11.87 13.23L10.42 12.03L9.14 12.56L8.96 14.43L7.04 14.43L6.86 12.56L5.58 12.03L4.13 13.23L2.77 11.87L3.97 10.42L3.44 9.14L1.57 8.96L1.57 7.04L3.44 6.86L3.97 5.58L2.77 4.13L4.13 2.77L5.58 3.97Z"/><circle cx="8" cy="8" r="2.1"/></svg>
+        <svg class="tool" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5.2M4.6 4.2a5.2 5.2 0 1 0 6.8 0"/></svg>
+      </div>
+      <p class="note" id="up-note" aria-live="polite">Version 0.4 is available. Go on, press it.</p>
+    </div>
+  </section>
+
+  <section class="clawd">
+    <div class="say">
+      <h2>And then there is Clawd</h2>
+      <p>He types, digs, juggles and cooks while Claude works. He celebrates when the tests pass. When nothing is running, he takes the day off.</p>
+      <p><a href="clawd.html">See <span id="moves">all his</span> moves</a></p>
+    </div>
+    <div class="parade" role="group" aria-label="Clawd's hobbies. Pick one to see it in the notch."><div class="track" id="track"></div></div>
+  </section>
+
+  <section class="get" id="get">
+    <div class="say">
+      <h2>Get it</h2>
+      <p>Free, and open source under the MIT License. Nothing leaves your Mac unless you switch on reading usage from your Claude login.</p>
+      <div class="ctas" style="justify-content:flex-start;margin-top:22px">
+        <a class="btn primary" href="https://github.com/theposch/notch-buddy/releases/latest" target="_blank" rel="noopener">Download for Mac</a>
+        <a class="btn quiet" href="help.html">Help</a>
+      </div>
+    </div>
+    <div>
+      <ol class="steps">
+        <li><div><b>Download it and unzip it.</b><span>Drag Notch Buddy into your Applications folder.</span></div></li>
+        <li><div><b>Open it.</b><span>macOS asks first, because the app isn't signed by Apple yet. See below.</span></div></li>
+        <li><div><b>Click Connect to Claude Code.</b><span>That's it. Start a session and watch the notch.</span></div></li>
+      </ol>
+      <p class="gate"><b>The first time you open it:</b> macOS says it can't check the app. Go to System Settings, then Privacy &amp; Security, scroll to Security and click <b>Open Anyway</b>. On macOS 14 you can also right-click the app and choose <b>Open</b>. After that it opens normally.</p>
+    </div>
+  </section>
+</main>
+
+
+<footer><nav><a href="./" aria-current="page">Home</a><a href="clawd.html">All the moves</a><a href="help.html">Help</a></nav>Free and open source under the <a href="https://github.com/theposch/notch-buddy/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>. Not affiliated with Anthropic. Clawd is the Claude Code mascot.</footer>
+
+<script src="engine.js"></script>
+<script src="shell.js"></script>
+<script>
+/* The home page's own pieces of notch. They use the same drawing code as the notch in the menu bar. */
+(() => {
+const { A, RM, stage, session, sample, PLACES, ring, check, HOBBIES, VERBS } = NB;
+
+/* Every Clawd on this page, painted only while it's on screen. */
+const mine = new Set(), visible = new Set();
+const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? visible.add(e.target._st) : visible.delete(e.target._st)), { rootMargin: "100px" });
+function watch(st) { st.cv._st = st; mine.add(st); io.observe(st.cv); st.paint(); return st; }
+function forget(box) { box.querySelectorAll("canvas").forEach(cv => { if (cv._st) { io.unobserve(cv); mine.delete(cv._st); visible.delete(cv._st); } }); }
+/* Puts sessions into a piece of notch. */
+function fill(box, list, opt) {
+  forget(box); box.textContent = "";
+  list.forEach(s => { const mineList = [], el = session(s, Object.assign({ list: mineList }, opt)); box.append(el); el._stage(); mineList.forEach(watch); });
+}
+document.querySelectorAll("main canvas[data-anim]").forEach(cv => watch(stage(cv, cv.dataset.anim, cv.dataset.color)));
+
+/* Rows: one working (shown as if the mouse is over it), one finished. */
+const rows = document.getElementById("spec-rows");
+const working = () => Object.assign(sample("b", "working", "Editing tokens.css", "4m"), { tests: { ok: true, text: "42 passed" }, pr: { n: 77, checks: "running" }, todo: "2 of 5 · Auditing colour use" });
+fill(rows, [working(), sample("d", "done", "", "4m")]);
+rows.firstChild.classList.add("show");
+
+/* The card. Its buttons work: Claude gets on with it, then asks again. */
+const card = document.getElementById("spec-card");
+let again;
+function ask() { fill(card, [sample("a", "waiting", "", "now")], { answer }); }
+function answer(s, how) {
+  clearTimeout(again);
+  fill(card, [sample("a", "working", how === "deny" ? "Trying another way" : how === "always" ? "Running npm test (allowed from now on)" : "Running npm test", "now")]);
+  again = setTimeout(ask, 3200);
+}
+ask();
+
+/* Usage, large. */
+document.getElementById("dial-work").innerHTML = ring(72, "#D97757", 64, 6) + "<b>72%</b>";
+document.getElementById("dial-home").innerHTML = ring(41, "#7FB3E0", 64, 6) + "<b>41%</b>";
+
+/* You choose what a row shows. */
+const choose = document.getElementById("spec-choose"), presets = document.getElementById("presets");
+function preset(name) {
+  presets.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === name)));
+  fill(choose, [working()], { places: PLACES[name], show: true });
+}
+presets.addEventListener("click", e => { const b = e.target.closest("button"); if (b) preset(b.dataset.p); });
+preset("balanced");
+
+/* Updates in one click. */
+document.getElementById("up-work").innerHTML = ring(72, "#D97757", 16, 2) + "72%";
+document.getElementById("up-home").innerHTML = ring(41, "#7FB3E0", 16, 2) + "41%";
+const slot = document.getElementById("up-slot"), note = document.getElementById("up-note");
+function offer() {
+  slot.innerHTML = `<button type="button" class="upd" id="up-btn">Update</button>`;
+  note.textContent = "Version 0.4 is available. Go on, press it.";
+  slot.firstChild.addEventListener("click", () => {
+    slot.firstChild.disabled = true; slot.firstChild.textContent = "Updating…";
+    note.textContent = "Downloading, checking, installing…";
+    setTimeout(() => {
+      slot.innerHTML = `<span class="ok">${check(16)}Up to date</span>`;
+      note.textContent = "Restarted on version 0.4. That was the whole update.";
+      setTimeout(offer, 4200);
+    }, RM ? 0 : 1600);
+  });
+}
+offer();
+
+/* The Settings picture: Clawd's word changes, as in the real preview. */
+const word = document.getElementById("win-word");
+if (!RM) setInterval(() => { word.textContent = NB.pick(VERBS) + "…"; }, 2600);
+document.getElementById("moves").textContent = "all " + A.length;
+
+/* The hobby strip: pick one to give Clawd that day off in the notch. */
+const COLS = ["#D97757", "#6aa9e9", "#7cc79a", "#b48ad9", "#e8c66a", "#e98aa8", "#5fc7c0"];
+const track = document.getElementById("track"), buttons = [];
+[...HOBBIES, ...HOBBIES].forEach((h, i) => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "hobby"; b.setAttribute("aria-pressed", "false");
+  if (i >= HOBBIES.length) { b.tabIndex = -1; b.setAttribute("aria-hidden", "true"); }
+  const cv = document.createElement("canvas"); cv.setAttribute("aria-hidden", "true");
+  const t = document.createElement("span"); t.textContent = h[1];
+  b.append(cv, t); track.append(b); buttons.push([b, h[0]]);
+  watch(stage(cv, h[0], COLS[i % COLS.length]));
+  b.addEventListener("click", () => { NB.dayOff(h); mark(); });
+});
+function mark() { const now = NB.hobby(); buttons.forEach(([b, id]) => b.setAttribute("aria-pressed", String(id === now))); }
+NB.onDay(mark);
+
+addEventListener("resize", () => mine.forEach(s => { s.fit(); s.paint(); }));
+if (!RM) { const loop = now => { visible.forEach(s => s.paint(now)); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+})();
+</script>
+</body>
+</html>

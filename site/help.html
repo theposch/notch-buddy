@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Help · Notch Buddy</title>
+<meta name="description" content="Setting up Notch Buddy, what it reads, and what to do when macOS asks questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="shell.css">
+<style>
+main.page { align-self: start; display: block; width: min(720px, 100%); text-align: left; padding-top: clamp(56px, 8vw, 96px); padding-bottom: 72px; }
+.page h1, .page > .lede { text-align: center; margin-inline: auto; }
+.faq { margin-top: 48px; border-top: 1px solid var(--bar-line); }
+.faq details { border-bottom: 1px solid var(--bar-line); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 2px; font: 600 clamp(17px, 1.6vw, 19px)/1.3 var(--sys); letter-spacing: -0.015em; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary:hover { opacity: .75; }
+.faq .pm { width: 14px; height: 14px; flex: none; color: var(--muted); transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.faq details[open] .pm { transform: rotate(45deg); }
+.faq details > div { padding: 0 2px 22px; color: var(--muted); }
+.faq details p { margin: 0; max-width: 62ch; }
+.faq details p + p { margin-top: 10px; }
+.faq b { color: var(--ink); font-weight: 600; }
+.faq a { text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+.stuck { margin: 40px 0 0; text-align: center; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .faq .pm { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="menubar">
+  <div class="side">
+    <svg class="apple" viewBox="0 0 14 17" fill="currentColor" aria-hidden="true"><path d="M11.6 9c0-2 1.7-3 1.8-3-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.8-2.8-.7C3 4.4 1.7 5.2 1 6.5c-1.5 2.6-.4 6.4 1 8.5.7 1 1.5 2.1 2.6 2 1-.1 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.6 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.6ZM9.6 3c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2Z"/></svg>
+    <a class="menu app" href="./">Notch Buddy</a>
+    <a class="menu" href="https://github.com/theposch/notch-buddy" target="_blank" rel="noopener">GitHub</a>
+    <a class="menu" href="clawd.html">View</a>
+    <a class="menu" href="help.html" aria-current="page">Help</a>
+  </div>
+  <div class="side">
+    <svg class="ico batt" viewBox="0 0 25 12" fill="none" stroke="currentColor" aria-hidden="true"><rect x=".5" y=".5" width="21" height="11" rx="3" opacity=".5"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor" stroke="none"/><path d="M23 4v4" stroke-linecap="round" opacity=".5"/></svg>
+    <svg class="ico" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true"><path d="M9 13.2 6.6 10.6a3.4 3.4 0 0 1 4.8 0L9 13.2Zm-4.3-4.5L3.2 7.1a8.2 8.2 0 0 1 11.6 0l-1.5 1.6a6 6 0 0 0-8.6 0ZM1.6 5.4 0 3.8a12.8 12.8 0 0 1 18 0l-1.6 1.6a10.5 10.5 0 0 0-14.8 0Z"/></svg>
+    <svg class="ico" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1" y="1.5" width="16" height="4.6" rx="2.3"/><circle cx="13.4" cy="3.8" r="1.2" fill="currentColor" stroke="none"/><rect x="1" y="8" width="16" height="4.6" rx="2.3"/><circle cx="4.6" cy="10.3" r="1.2" fill="currentColor" stroke="none"/></svg>
+    <span><span id="date">Tue 24 Nov</span>&nbsp;&nbsp;<span id="time">9:41</span></span>
+  </div>
+  <div class="notch" id="notch" tabindex="0" role="button" aria-expanded="false" aria-label="Notch Buddy. Hover or press Enter to open.">
+    <div class="bar">
+      <div class="usage" id="usage"></div>
+      <div class="wl"><canvas id="clawd" aria-hidden="true"></canvas></div><i class="lens"></i><div class="wr" id="status" aria-live="polite"></div>
+      <div class="tools" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M6.86 3.44L7.04 1.57L8.96 1.57L9.14 3.44L10.42 3.97L11.87 2.77L13.23 4.13L12.03 5.58L12.56 6.86L14.43 7.04L14.43 8.96L12.56 9.14L12.03 10.42L13.23 11.87L11.87 13.23L10.42 12.03L9.14 12.56L8.96 14.43L7.04 14.43L6.86 12.56L5.58 12.03L4.13 13.23L2.77 11.87L3.97 10.42L3.44 9.14L1.57 8.96L1.57 7.04L3.44 6.86L3.97 5.58L2.77 4.13L4.13 2.77L5.58 3.97Z"/><circle cx="8" cy="8" r="2.1"/></svg><svg viewBox="0 0 16 16"><path d="M8 2v5.2M4.6 4.2a5.2 5.2 0 1 0 6.8 0"/></svg></div>
+    </div>
+    <div class="panel"><div><div class="rows nb" id="rows"></div></div></div>
+  </div>
+</header>
+
+<main class="page">
+  <h1>Help</h1>
+  <p class="lede">Everything you were going to ask Claude anyway.</p>
+
+  <div class="faq">
+    <details open>
+      <summary>What does Notch Buddy do?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>It lives in your Mac's notch and watches Claude Code, so you can stop staring at a terminal like it owes you money. Open the notch to see every session: which ones are working, which are done and which need you.</p>
+        <p>Allow or deny a step right there, check how much usage you've burned through, and Clawd keeps you company while an AI does your job.</p></div>
+    </details>
+    <details>
+      <summary>How do I set it up?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Download it, unzip it, drag Notch Buddy into Applications. Open it and click <b>Connect to Claude Code</b>. That's it. That's the onboarding.</p>
+        <p>Connecting adds Notch Buddy to Claude Code's settings file, so Claude Code tells it what's happening. A backup of your settings is kept, and <b>Disconnect</b> in Settings puts them back. Commitment issues, respected.</p></div>
+    </details>
+    <details>
+      <summary>Why does macOS warn me when I open it?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Notch Buddy isn't signed by Apple yet. That costs money, and this is free. The first time you open it, macOS says it can't check the app. Go to <b>System Settings &gt; Privacy &amp; Security</b>, scroll to Security and click <b>Open Anyway</b>. After that it opens normally. Living on the edge.</p>
+        <p>On macOS 14 you can also right-click the app (or Control-click it), choose <b>Open</b>, then <b>Open</b> again.</p></div>
+    </details>
+    <details>
+      <summary>Does it work with other coding agents?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>No. Just Claude Code, in the Terminal and in the Claude desktop app. He's loyal.</p></div>
+    </details>
+    <details>
+      <summary>What if my Mac has no notch?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>It draws a smaller one at the top of your screen. Everybody gets a notch.</p></div>
+    </details>
+    <details>
+      <summary>Does anything leave my Mac?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>No. No account, no server, no analytics, no “we value your privacy” banner. Claude Code tells Notch Buddy what's happening on your own Mac, and it stays there.</p>
+        <p>One exception, and you have to switch it on yourself: reading usage from your Claude login. Then your login goes to Anthropic, and only Anthropic, to ask how much you've used. Which is a lot. We both know.</p></div>
+    </details>
+    <details>
+      <summary>How does it know my usage?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Claude Code shares it while it runs in the Terminal. To see it without the Terminal, go to <b>Settings &gt; Usage and accounts</b> and switch on reading a login that's already on your Mac: Claude Code's, or the Claude desktop app's.</p>
+        <p>That isn't an official Anthropic feature, so it might stop working one day. If it does, the Terminal still has your back.</p></div>
+    </details>
+    <details>
+      <summary>Why does it ask for access to my Keychain?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Only if you switch on reading usage from your login, because that's where macOS keeps it. Click <b>Allow usage</b> in the notch, then <b>Always Allow</b> in the macOS prompt.</p>
+        <p>Since the app isn't signed by Apple yet, macOS asks again after every update. Yes, every time. No, we can't fix that for free.</p></div>
+    </details>
+    <details>
+      <summary>I have more than one Claude account.<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Of course you do. Each account gets its own name and colour, and every session shows which one it's on. In <b>Settings &gt; Usage and accounts</b> you can rename them, hide one, and choose whose usage the closed notch shows. Your work account never has to know.</p></div>
+    </details>
+    <details>
+      <summary>Can I choose which messages I see?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Yes. In <b>Settings &gt; Messages</b>, start from a preset or switch each moment on or off, like failed tests, pushes or new pull requests. Curate them like your personal brand.</p></div>
+    </details>
+    <details>
+      <summary>Can I choose what a session row shows?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Yes. In <b>Settings &gt; Sessions</b>, put each detail on the row, on hover, or nowhere: model, account, branch, tests, pull request, cost and more. Or pick a preset: Minimal, Balanced, Everything. Minimalists and hoarders both welcome.</p></div>
+    </details>
+    <details>
+      <summary>How do I update?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>When a new version is out, an <b>Update</b> button appears in the notch and in <b>Settings &gt; General</b>. One click downloads it, checks it, installs it and restarts. Nothing is downloaded until you click.</p>
+        <p>On version 0.1, download the new version by hand once. After that the button does it.</p></div>
+    </details>
+    <details>
+      <summary>Is it free?<svg class="pm" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary>
+      <div><p>Yes. Free and open source under the <a href="https://github.com/theposch/notch-buddy/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>. No pricing page. No “book a demo.”</p></div>
+    </details>
+  </div>
+
+  <p class="stuck">Something broken? <a href="https://github.com/theposch/notch-buddy/issues" target="_blank" rel="noopener">Tell us on GitHub</a>. Screenshots help. Vibes don’t.</p>
+</main>
+
+<footer><nav><a href="./">Home</a><a href="clawd.html">All the moves</a><a href="help.html" aria-current="page">Help</a></nav>Free and open source under the <a href="https://github.com/theposch/notch-buddy/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>. Not affiliated with Anthropic. Clawd is the Claude Code mascot.</footer>
+
+<script src="engine.js"></script>
+<script src="shell.js"></script>
+</body>
+</html>
