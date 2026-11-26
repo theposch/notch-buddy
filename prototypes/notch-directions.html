@@ -1,0 +1,747 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notch Buddy Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Geist:wght@400;500;600&family=Pixelify+Sans:wght@500;700&display=swap">
+<style>
+/* Layout: a gallery of four MacBook screens, one per direction. Each carries a live notch built from
+   macOS's own vocabulary: system type sizes, system fills and hairlines, capsule buttons, Live Activities.
+   The page around them stays quiet. */
+:root{
+  --bg:#eceef2; --ink:#13151a; --muted:#59606c; --line:#d3d8e0; --card:#ffffff; --accent:#b9542f; --chip:#dfe3ea; --bezel:#0a0a0b;
+  --win:#ececec; --win-group:#f6f6f6; --win-line:rgba(0,0,0,.1); --win-ink:#1d1d1f; --win-ink2:#6e6e73; --win-ctl:#ffffff; --sys-blue:#007aff;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"Geist","Helvetica Neue",Arial,sans-serif;
+  --pixel:"Pixelify Sans",ui-monospace,monospace;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Geist",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  /* The notch is a picture of a Mac in dark appearance: Apple's system colours, the same in both themes. */
+  --n-bg:#000; --label:#fff; --label2:rgba(235,235,245,.62); --label3:rgba(235,235,245,.34);
+  --sep:rgba(84,84,88,.62); --fill:rgba(120,120,128,.36); --fill3:rgba(118,118,128,.24); --fill4:rgba(118,118,128,.15); --tile:#1c1c1e;
+  --yellow:#FFD60A; --green:#30D158; --red:#FF453A; --tint:#D97757; --on-tint:#1d0e07;
+  /* Today's notch keeps the colours the app ships with. */
+  --t-dim:#9a9a95; --t-rule:#1d1d1d; --t-chip:#262626; --t-amber:#E8C66A; --t-green:#8FBF6A;
+  --bar-ink:rgba(255,255,255,.94);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b0c0f; --ink:#f0f0ec; --muted:#9a9fa9; --line:#23262d; --card:#14161b; --accent:#e58a66; --chip:#1c1f26; --bezel:#000; --win:#1e1e1e; --win-group:#282828; --win-line:rgba(255,255,255,.1); --win-ink:#f5f5f7; --win-ink2:#98989d; --win-ctl:#3a3a3c; --sys-blue:#0a84ff; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0b0c0f; --ink:#f0f0ec; --muted:#9a9fa9; --line:#23262d; --card:#14161b; --accent:#e58a66; --chip:#1c1f26; --bezel:#000; --win:#1e1e1e; --win-group:#282828; --win-line:rgba(255,255,255,.1); --win-ink:#f5f5f7; --win-ink2:#98989d; --win-ctl:#3a3a3c; --sys-blue:#0a84ff; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-block:0}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:88px;padding-block:44px 96px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Masthead */
+.mast{display:flex;flex-direction:column;gap:22px}
+.mark{display:flex;align-items:flex-end;gap:4px;margin-left:-12px;font-family:var(--pixel);font-weight:700;font-size:18px;letter-spacing:.02em}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,7.4vw,84px);line-height:.94;letter-spacing:-.035em;margin:0;text-wrap:balance;max-width:13ch}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{max-width:60ch;color:var(--muted);font-size:18px;margin:0}
+.jump{display:flex;flex-wrap:wrap;gap:8px}
+.jump a{display:flex;align-items:baseline;gap:8px;padding:8px 14px 8px 12px;border-radius:999px;background:var(--chip);color:var(--ink);text-decoration:none;font-weight:500;font-size:15px}
+.jump a span{font-family:var(--pixel);font-size:12px;color:var(--muted)}
+.jump a:hover{background:var(--ink);color:var(--bg)}
+.jump a:hover span{color:inherit}
+
+/* A direction */
+.dir{display:flex;flex-direction:column;gap:22px;scroll-margin-top:24px}
+.head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 48px;align-items:end}
+.eyebrow{font-family:var(--pixel);font-size:13px;letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+h2{font-family:var(--display);font-weight:800;font-size:clamp(34px,5.2vw,58px);line-height:1;letter-spacing:-.03em;margin:6px 0 10px}
+.pitch{color:var(--muted);margin:0;max-width:44ch;font-size:17px}
+.changes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.changes li{padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;display:flex;gap:12px}
+.changes li::before{content:"";flex:none;width:7px;height:7px;margin-top:8px;background:var(--accent)}
+
+/* The MacBook: a black bezel, the top of its screen, and the camera housing in the middle */
+.mac{background:var(--bezel);border-radius:22px 22px 0 0;padding:11px 11px 0;border:1px solid var(--line);border-bottom:0}
+.screen{position:relative;height:404px;border-radius:11px 11px 0 0;overflow:hidden;isolation:isolate;--bar:34px;--cam:184px}
+.d-live .screen{height:448px} .d-signal .screen{height:448px} .d-blend .screen{height:500px}
+.menubar{position:absolute;inset:0 0 auto 0;height:var(--bar);display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 18px;
+  color:var(--bar-ink);font-family:var(--ui);font-size:13.5px;font-weight:500;-webkit-font-smoothing:antialiased;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.menubar b{font-weight:700}
+.menubar .l{display:flex;gap:20px;white-space:nowrap;overflow:hidden}
+.menubar .r{display:flex;align-items:center;gap:14px;white-space:nowrap}
+.menubar svg{display:block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.d-today .screen{background:radial-gradient(95% 85% at 88% 112%,#9cc8ef 0%,transparent 60%),radial-gradient(75% 75% at 0% 0%,#2c68a8 0%,transparent 70%),#4686c6}
+.d-blend .screen{background:radial-gradient(115% 90% at 88% 116%,#f0c9a8 0%,transparent 56%),radial-gradient(95% 85% at 2% -6%,#4f7f9c 0%,transparent 62%),#55708a}
+.d-quiet .screen{background:radial-gradient(120% 95% at 12% 118%,#e9c9a0 0%,transparent 54%),radial-gradient(95% 85% at 96% -4%,#86b0a8 0%,transparent 60%),#3b5a62}
+.d-signal .screen{background:radial-gradient(110% 90% at 90% 115%,#c9b6f2 0%,transparent 56%),radial-gradient(90% 80% at 4% -6%,#3c4f9a 0%,transparent 62%),#5b63b0}
+.d-live .screen{background:radial-gradient(105% 85% at 84% 114%,#f4ad64 0%,transparent 56%),radial-gradient(95% 75% at 6% -4%,#b3557e 0%,transparent 62%),#5a2c52}
+
+/* The notch. Pure black, so it joins the camera housing with no seam. */
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--n-bg);color:var(--label);font-family:var(--ui);
+  -webkit-font-smoothing:antialiased;width:300px;height:var(--bar);border-radius:0 0 11px 11px;z-index:2}
+.live .notch{transition:width .42s cubic-bezier(.2,1.16,.3,1),height .42s cubic-bezier(.2,1.16,.3,1),border-radius .3s}
+.notch.open{border-radius:0 0 26px 26px}
+.notch::before,.notch::after{content:"";position:absolute;top:0;width:10px;height:10px}
+.notch::before{left:-10px;background:radial-gradient(circle at 0 100%,transparent 9.5px,var(--n-bg) 10px)}
+.notch::after{right:-10px;background:radial-gradient(circle at 100% 100%,transparent 9.5px,var(--n-bg) 10px)}
+.lens{position:absolute;left:50%;top:calc(var(--bar)/2 - 3px);width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#0d0e12;box-shadow:inset 0 0 0 1px #17181d;z-index:3}
+.clip{position:absolute;inset:0;overflow:hidden;border-radius:inherit}
+.closed{position:absolute;top:0;left:50%;transform:translateX(-50%);height:var(--bar);width:max-content;display:grid;grid-template-columns:1fr var(--cam) 1fr;
+  font-size:12px;font-weight:600;white-space:nowrap}
+.live .closed{transition:opacity .16s}
+.notch.open .closed{opacity:0;pointer-events:none}
+.wing{min-width:58px;display:flex;align-items:center;padding:0 6px}
+.wing.r{justify-content:center;padding:0 12px;gap:6px}
+.panel{position:absolute;top:0;left:50%;transform:translateX(-50%);opacity:0;pointer-events:none}
+.notch.open .panel{opacity:1;pointer-events:auto}
+.live .panel{transition:opacity .18s}
+.live .notch.open .panel{transition:opacity .28s .1s}
+canvas.clawd{display:block;flex:none;image-rendering:pixelated}
+
+/* Parts every direction shares */
+.strip{height:var(--bar);display:grid;grid-template-columns:1fr var(--cam) 1fr;align-items:center;font-size:12px;font-weight:500;white-space:nowrap}
+.sl{display:flex;align-items:center;gap:12px;padding-left:18px;min-width:0;overflow:hidden}
+.sr{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding-right:12px}
+.icon{width:24px;height:24px;display:grid;place-items:center;background:none;border:0;padding:0;color:var(--label2);border-radius:7px}
+.icon:hover{color:#fff;background:var(--fill4)}
+.icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+.tx>*{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.t{font-size:13px;font-weight:600;letter-spacing:-.006em;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:12px;color:var(--label2);overflow:hidden}
+.s>span,.s>code{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fix{flex:none!important;overflow:visible!important}
+.y{color:var(--yellow)} .g{color:var(--green)} .tn{color:var(--tint)}
+.tm{font-size:11px;color:var(--label3);font-variant-numeric:tabular-nums;flex:none}
+code{font-family:var(--mono);font-size:11px;color:#fff;background:var(--fill3);padding:2px 6px;border-radius:5px}
+.btn{border:0;height:26px;padding:0 13px;border-radius:13px;font:600 12px/1 var(--ui);letter-spacing:-.003em;background:var(--fill);color:#fff;flex:none;transition:filter .12s,transform .12s}
+.btn.pri{background:var(--tint);color:var(--on-tint)}
+.btn:hover{filter:brightness(1.14)} .btn:active{transform:scale(.97);filter:brightness(.92)}
+.ring{flex:none;transform:rotate(-90deg);display:block}
+.ring circle{fill:none} .ring .tr{stroke:var(--fill3)} .ring .v{stroke:var(--k,#fff);stroke-linecap:round}
+.check{flex:none;display:block}
+.spin{flex:none;display:block;animation:spin .8s steps(8) infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.caught{display:flex;flex-direction:column;align-items:center;padding:6px 20px 20px;text-align:center}
+.caught b{font-size:13px;font-weight:600;margin-top:8px}
+.caught span{font-size:12px;color:var(--label2);margin-top:2px}
+.caught small{font-size:11px;color:var(--label3);margin-top:5px}
+.narrow .hide-narrow{display:none!important}
+.narrow .art canvas{width:112px!important;height:73px!important}
+.narrow .hero{padding-left:2px}
+
+/* 00 Today: the app as it ships */
+.d-today .notch{font-size:12px}
+.d-today .u{display:flex;align-items:center;gap:6px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--k,var(--tint));flex:none}
+.d-today .rows{padding:0 16px 12px}
+.d-today .row{display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--t-rule)}
+.d-today .nm{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.d-today .tag{font-size:10px;font-weight:500;color:var(--t-dim);background:var(--t-chip);padding:1px 6px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;flex:none}
+.d-today .l2{font-size:12px;font-weight:500}
+.d-today .act{color:rgba(255,255,255,.6);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.d-today .tm{font-size:12px;color:var(--t-dim)}
+.d-today .pill{border:0;border-radius:999px;height:24px;padding:0 12px;font:600 12px var(--ui);background:#333;color:#fff;flex:none}
+.d-today .pill.go{background:var(--tint);color:#000}
+.d-today .meter{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:500;color:var(--t-dim);font-variant-numeric:tabular-nums;flex:none}
+.d-today .meter i{width:44px;height:4px;border-radius:4px;background:#2c2c2c;position:relative;overflow:hidden}
+.d-today .meter i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--v);background:#999;border-radius:4px}
+.d-today .caught span{color:var(--t-dim)}
+.d-today .icon{color:var(--t-dim)} .d-today .icon:hover{background:none}
+.d-today.narrow-tags .tag,.narrow .d-hide{display:none}
+
+/* 01 Quiet: a list. One line per session, the rest on hover. */
+.d-quiet .sl,.d-signal .sl,.d-blend .sl{gap:14px;color:var(--label2);font-size:11.5px}
+.d-quiet .u,.d-signal .u,.d-blend .u{display:flex;align-items:center;gap:6px;cursor:default}
+.u b{font-weight:500;color:var(--label);font-variant-numeric:tabular-nums}
+.list{padding:2px 8px 8px}
+.qrow{position:relative;display:flex;align-items:center;gap:8px;height:56px;padding:0 12px 0 4px;border-radius:12px}
+.live .qrow{transition:background .12s}
+.qrow:hover{background:var(--fill4)}
+.qrow+.qrow::before{content:"";position:absolute;left:72px;right:12px;top:0;height:.5px;background:var(--sep)}
+.qrow:hover::before,.qrow:hover+.qrow::before{opacity:0}
+.qrow.s-done .t,.qrow.s-done canvas{opacity:.62}
+.swap{display:grid;justify-items:end;flex:none}
+.swap>*{grid-area:1/1;white-space:nowrap}
+.live .swap>*{transition:opacity .14s}
+.swap .tags{opacity:0;font-size:11px;color:var(--label2)}
+.qrow:hover .swap .tags{opacity:1}
+.qrow:hover .swap .tm{opacity:0}
+
+/* 02 Signal: sorted by what needs you. The stuck one becomes a notification. */
+.cap{height:20px;padding:0 9px;border-radius:10px;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;letter-spacing:-.003em}
+.cap.yy{background:var(--yellow);color:#231c00}
+.sech{font-size:11px;font-weight:600;color:var(--label2);padding:10px 18px 5px;display:flex;align-items:center;gap:6px}
+.sech .n{color:var(--label3);font-weight:500}
+.card{margin:0 10px;background:var(--tile);border-radius:16px;padding:10px 10px 10px}
+.chead{display:flex;align-items:center;gap:8px;padding-right:4px}
+.cmd{margin:8px 0 10px;padding:8px 10px;border-radius:9px;background:#000;font-family:var(--mono);font-size:11.5px;line-height:1.4;color:#f2f2f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd::before{content:"$ ";color:var(--label3)}
+.acts{display:flex;gap:6px}
+.acts .btn{flex:1;height:30px;border-radius:9px;padding:0 6px;font-size:12.5px}
+.srow{display:flex;align-items:center;gap:8px;height:44px;padding:0 18px 0 12px}
+.srow .tx{flex-direction:row;align-items:baseline;gap:8px}
+.srow .t{flex:none;max-width:60%}
+.d-signal .tail{padding-bottom:10px}
+
+/* 04 Quiet Signal: Quiet's list, with Signal's pill and notification card for the session that needs you */
+.list .card{margin:2px 2px 6px}
+.list .card+.qrow::before{display:none}
+
+/* Quiet Signal's rows: what you chose to see at a glance, and a details line on hover */
+.brow{position:relative;border-radius:12px}
+.live .brow{transition:background .12s}
+.brow:hover{background:var(--fill4)}
+.brow .qrow:hover{background:none}
+.brow+.brow::before{content:"";position:absolute;left:72px;right:12px;top:0;height:.5px;background:var(--sep)}
+.brow:hover::before,.brow:hover+.brow::before,.list .card+.brow::before{opacity:0}
+.brow.s-done .t,.brow.s-done canvas{opacity:.62}
+.gl{display:flex;align-items:center;gap:9px;flex:none}
+.gl .tm{font-size:11px}
+.ic{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.gl .ic{width:13px;height:13px}
+.mtag{font-size:10.5px;font-weight:500;color:var(--label2);background:var(--fill4);padding:1px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;flex:none}
+.pose{position:relative;flex:none}
+.plus{position:absolute;right:2px;bottom:1px;font-size:9px;font-weight:700;line-height:1;padding:2px 4px;border-radius:999px;background:#3a3a3c;color:#fff;box-shadow:0 0 0 1.5px #000;font-variant-numeric:tabular-nums}
+.todo{position:absolute;left:72px;right:12px;bottom:3px;height:2px;border-radius:2px;background:var(--fill4);overflow:hidden}
+.todo::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--v);background:var(--tint);border-radius:2px}
+.det{display:none;flex-wrap:wrap;gap:3px 12px;padding:0 12px 10px 72px;margin-top:-5px;font-size:11px;line-height:1.5;color:var(--label2)}
+.det>span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.brow.hov .det,.card.hov .det,.always .det{display:flex}
+.card .det{padding:10px 4px 0;margin:0}
+.lk{color:#6cb0ff}
+.rd{color:var(--red)}
+
+/* The settings sheet: a Mac window, in the viewer's own light or dark appearance */
+.prefwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:20px 48px;align-items:start}
+.prefnote h3{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1;letter-spacing:-.02em;margin:4px 0 8px}
+.prefnote p{margin:0 0 10px;color:var(--muted);font-size:15px;max-width:40ch}
+.prefs{background:var(--win);color:var(--win-ink);border-radius:12px;border:1px solid var(--win-line);font-family:var(--ui);font-size:13px;line-height:1.3;
+  box-shadow:0 18px 40px -18px rgba(0,0,0,.35);overflow:hidden;-webkit-font-smoothing:antialiased}
+.pbar{height:38px;display:flex;align-items:center;justify-content:center;position:relative;font-weight:600;border-bottom:1px solid var(--win-line)}
+.pbar span{position:absolute;left:13px;display:flex;gap:8px}
+.pbar i{width:12px;height:12px;border-radius:50%;background:#ff5f57} .pbar i:nth-child(2){background:#febc2e} .pbar i:nth-child(3){background:#28c840}
+.pbody{padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.pseg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--win-group);border:1px solid var(--win-line);border-radius:8px;padding:2px}
+.pseg button{border:0;background:none;border-radius:6px;height:24px;font:500 13px var(--ui);color:var(--win-ink)}
+.pseg button[aria-pressed="true"]{background:var(--win-ctl);box-shadow:0 0 0 .5px var(--win-line),0 1px 2px rgba(0,0,0,.14)}
+.ph{font-size:12px;font-weight:600;color:var(--win-ink2);margin:0 0 5px 8px}
+.pbox{background:var(--win-group);border:1px solid var(--win-line);border-radius:9px}
+.prow{display:flex;align-items:center;gap:10px;min-height:38px;padding:4px 8px 4px 12px}
+.prow+.prow{border-top:1px solid var(--win-line)}
+.pl{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.pl small{font-size:11.5px;color:var(--win-ink2);overflow:hidden;text-overflow:ellipsis}
+.prow select{font:13px var(--ui);color:var(--win-ink);background:var(--win-ctl);border:1px solid var(--win-line);border-radius:6px;height:24px;padding:0 6px;flex:none}
+.sw{appearance:none;-webkit-appearance:none;width:38px;height:22px;border-radius:11px;background:var(--win-line);position:relative;margin:0;flex:none;cursor:pointer;transition:background .15s}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
+.sw:checked{background:var(--sys-blue)} .sw:checked::after{transform:translateX(16px)}
+
+/* 03 Live: one session at a time, like a Live Activity */
+.hero{display:flex;align-items:center;gap:4px;padding:2px 22px 0 6px}
+.art{flex:none;display:grid;place-items:center}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.kicker{font-size:11px;font-weight:600;color:var(--label2);display:flex;gap:5px;white-space:nowrap;overflow:hidden}
+.big{font-size:20px;font-weight:700;letter-spacing:-.018em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bodyl{font-size:13px;line-height:1.38;color:var(--label2);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:36px}
+.bodyl code{font-size:11.5px}
+.prog{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 22px 0;font-size:11px;color:var(--label3);font-variant-numeric:tabular-nums}
+.prog i{height:4px;border-radius:2px;background:var(--fill3);position:relative;overflow:hidden}
+.prog i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--v);border-radius:2px;background:#fff}
+.live .prog i::after{transition:width .5s}
+.acts2{display:flex;gap:8px;padding:12px 16px 0}
+.acts2 .btn{flex:1;height:36px;border-radius:18px;font-size:13.5px}
+.others{display:flex;gap:6px;padding:12px 16px 14px;overflow:hidden}
+.chipb{display:flex;align-items:center;gap:6px;border:0;background:var(--fill4);color:#fff;border-radius:14px;height:36px;padding:0 12px 0 2px;min-width:0;font:500 12px var(--ui)}
+.chipb:hover{background:var(--fill3)}
+.chipb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.left{margin-left:auto;align-self:center;font-size:11px;color:var(--label3);white-space:nowrap;flex:none;padding-left:8px}
+.badge{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;line-height:1}
+.badge.yy{background:var(--yellow);color:#231c00}
+.timer{font-size:13px;font-weight:600;color:var(--tint);font-variant-numeric:tabular-nums}
+
+/* Scene switch */
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;background:var(--chip);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+footer{border-top:1px solid var(--line);padding-top:26px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 48px;color:var(--muted);font-size:15px}
+footer b{display:block;font-family:var(--display);font-size:24px;line-height:1.1;color:var(--ink);letter-spacing:-.02em;margin-bottom:6px}
+footer p{margin:0}
+
+@media (max-width:760px){
+  .wrap{gap:64px;padding-block:28px 64px}
+  .head,footer,.prefwrap{grid-template-columns:minmax(0,1fr)}
+  .pl small{display:none}
+  .mac{padding:7px 7px 0;border-radius:16px 16px 0 0}
+  .menubar .l span,.menubar .r svg{display:none}
+  .hero{padding-right:14px} .big{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="mark" id="mark">Notch Buddy</div>
+    <h1>Five ways the notch could <em>look</em></h1>
+    <p class="lede">Every screen below is live. Hover a closed notch to open it, press Allow, switch the scene. The newest comes first: Quiet and Signal, combined. Today's design and the earlier directions follow, so you can compare. All of them are built only from what a Mac already does: system type, system colours, hairlines, capsule buttons, Live Activities.</p>
+    <nav class="jump" aria-label="Directions">
+      <a href="#blend"><span>04</span>Quiet Signal</a>
+      <a href="#today"><span>00</span>Today</a>
+      <a href="#quiet"><span>01</span>Quiet</a>
+      <a href="#signal"><span>02</span>Signal</a>
+      <a href="#live"><span>03</span>Live</a>
+    </nav>
+  </header>
+
+  <section class="dir" id="blend" data-dir="blend">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Direction 04 · Quiet + Signal</div>
+        <h2>Quiet Signal</h2>
+        <p class="pitch">Calm until something needs you. Quiet's list is the everyday view; Signal steps in only for the session that is stuck.</p>
+      </div>
+      <ul class="changes">
+        <li>From Signal: closed, a yellow "Needs you" pill. Otherwise Quiet's dots, one per session</li>
+        <li>From Signal: the stuck session opens as a card with the whole command and all three answers</li>
+        <li>From Quiet: every other session is one calm line, with model and account on hover</li>
+        <li>From Quiet: usage as a small ring per account with the percentage beside it; hover for the account's name and reset time</li>
+        <li>New: you choose what a row shows. Branch, tests, pull request and the rest come back on hover; the settings sheet below is live</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="dir" id="today" data-dir="today">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Direction 00</div>
+        <h2>Today</h2>
+        <p class="pitch">The notch as it ships in version 0.2. Everything it knows is on screen at once.</p>
+      </div>
+      <ul class="changes">
+        <li>Two tags, a status, an activity and a meter on every row</li>
+        <li>State is told by the colour of one word</li>
+        <li>Usage is two numbers beside the camera</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="dir" id="quiet" data-dir="quiet">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Direction 01</div>
+        <h2>Quiet</h2>
+        <p class="pitch">A plain list. One line per session, with everything else one hover away.</p>
+      </div>
+      <ul class="changes">
+        <li>A name and one line per session; model and account appear on hover</li>
+        <li>A ring and a number for usage; a ring alone for how full a conversation is</li>
+        <li>A finished session shows what Claude said last</li>
+        <li>Closed, the notch shows one dot per session</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="dir" id="signal" data-dir="signal">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Direction 02</div>
+        <h2>Signal</h2>
+        <p class="pitch">Sorted by what needs you. The session that is stuck becomes a notification you can answer; the rest stay small.</p>
+      </div>
+      <ul class="changes">
+        <li>Closed, a yellow pill says "Needs you", like the Mac's own menu bar indicators</li>
+        <li>Grouped the way Notification Center groups: Needs you, Working, Done</li>
+        <li>The request shows the whole command and all three answers</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="dir" id="live" data-dir="live">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Direction 03</div>
+        <h2>Live</h2>
+        <p class="pitch">One session at a time, the way a Live Activity or Now Playing shows one thing well. Clawd gets room to perform.</p>
+      </div>
+      <ul class="changes">
+        <li>The lead session at four times the size, with progress through Claude's to-do list</li>
+        <li>Allow and Deny as full-width buttons</li>
+        <li>Other sessions wait as chips; click one to bring it forward</li>
+        <li>Closed, the notch shows a running timer</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <div><b>These mix.</b><p>Quiet Signal at the top is one mix. Others are possible: Quiet's rows could sit under Live's lead session, and the yellow pill works on any closed notch.</p></div>
+    <div><b>What is real here.</b><p>The sessions, commands and numbers are examples. Clawd is the real one: the app's own drawing engine and all its animations. The colours, type sizes and fills are Apple's system values for dark appearance.</p></div>
+  </footer>
+</div>
+
+<script src="clawd-engine.js"></script>
+<script>
+const S = {
+  a:{name:'Fix idle rows', model:'Fable 5.2', acct:'Metalab', k:'#D97757', color:'#6AB7D9', ctx:28, secs:18, step:4, steps:7,
+     acts:['Editing NotchModel.swift','Running swift test','Reading NotchView.swift'], ask:'swift test --filter IdleRowTests', askShort:'swift test'},
+  b:{name:'Design tokens', model:'Opus 5.5', acct:'Personal', k:'#7FB3E0', color:'#E8C66A', ctx:57, secs:252, step:2, steps:5,
+     acts:['Searching for “radius”','Editing tokens.css','Helper: audit colour use']},
+  c:{name:'Landing page', model:'Sonnet 5.5', acct:'Personal', k:'#7FB3E0', color:'#B48AE0', ctx:31, ago:'4m', step:6, steps:6,
+     last:'Published the page and pushed to main. Two images still need alt text.'}
+};
+Object.assign(S.a, { branch:'fix/idle-rows', lines:['+612','−77','7 files'], tests:{ok:true, text:'157 passed'}, todoText:'4 of 7 · Running the tests', helpers:0, cost:1.84 });
+Object.assign(S.b, { branch:'tokens-2', lines:['+88','−41','3 files'], pr:{n:77, checks:'running'}, server:'localhost:6006', todoText:'2 of 5 · Auditing colour use', helpers:2, cost:0.62 });
+Object.assign(S.c, { branch:'main', lines:['+240','−12','5 files'], tests:{ok:true, text:'42 passed'}, pr:{n:74, checks:'passed'}, server:'localhost:4321', todoText:'All 6 steps done', helpers:0, cost:0.97 });
+const SCEN = { needs:{a:'waiting',b:'working',c:'done'}, working:{a:'working',b:'working',c:'done'}, calm:{} };
+const RANK = {waiting:3, working:2, done:1};
+let tick = 0;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = s => s < 60 ? s + 's' : Math.floor(s/60) + 'm';
+const clock = s => Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+const stOf = (st,id) => st.over[id] || SCEN[st.scen][id];
+const ids = st => ['a','b','c'].filter(id => stOf(st,id)).sort((x,y) => RANK[stOf(st,y)] - RANK[stOf(st,x)]);
+const leadState = st => { const l = ids(st)[0]; return l ? stOf(st,l) : 'idle'; };
+const actOf = id => S[id].acts[(tick + (id === 'b' ? 1 : 0)) % S[id].acts.length];
+const count = (st,s) => ids(st).filter(id => stOf(st,id) === s).length;
+
+/* A canvas for the app's own Clawd engine to draw on. `w` is its width; his stage is 40 x 26.
+   state: working, waiting, done, or idle (his day off: hobbies). role "lead" picks the hobby,
+   "follow" copies it, like the closed and open notch do in the app. */
+function clawd(color, state, w, role){
+  const mode = state === 'idle' ? 'life' : state;
+  return `<canvas class="clawd" data-key="${color}|${mode}|${w}|${role || ''}" data-mode="${mode}" data-color="${color}" ${role ? `data-${role}="1"` : ''} style="width:${w}px;height:${Math.round(w * 26 / 40)}px" aria-hidden="true"></canvas>`;
+}
+/* What the notch says under "All caught up", one line per hobby (from the app). */
+const HOBBY = {
+  coffee:'Coffee first. Then code. Maybe.', nightcap:'Off to bed. Wake me if it compiles.', fish:'Gone fishing. Bugs only bite on Mondays.',
+  read:'Reading the docs. For fun. Yes, really.', guitar:'Jamming. Back in five (songs).', bubbles:'Blowing bubbles. Very important work.',
+  telescope:'Looking for bugs in space.', tea:'Tea break. Steeping, not sleeping.', surf:'Catching waves, not errors.',
+  sax:'Smooth jazz hour. No meetings, please.', paint:'Painting. It’s abstract, like the specs.', water:'Watering plants. They grow faster than tests.',
+  balloons:'Party of one. Everything shipped.', lollipop:'Lollygagging, professionally.', gaming:'Gaming. Strictly research.',
+  headphones:'Lo-fi beats to do nothing to.', icecream:'Ice cream break. Earned it.', kite:'Flying a kite. Head in the cloud.',
+  sunbathe:'Out of office. Very out.', skate:'Kickflipping over merge conflicts.', cat:'Petting the cat. The cat says hi.', yawn:'Long day of doing nothing.'
+};
+function ring(pct, k, size, w){
+  w = w || 2.25; const r = size/2 - w/2 - .5, c = 2*Math.PI*r;
+  return `<svg class="ring" width="${size}" height="${size}" style="--k:${k}" role="img" aria-label="${pct}%"><circle class="tr" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${w}"/><circle class="v" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${w}" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct/100)}"/></svg>`;
+}
+const check = size => `<svg class="check" width="${size}" height="${size}" viewBox="0 0 18 18" role="img" aria-label="Done"><circle cx="9" cy="9" r="9" fill="var(--green)"/><path d="M5.3 9.4l2.5 2.5 4.9-5.5" fill="none" stroke="#04210c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const spin = size => `<svg class="spin" width="${size}" height="${size}" viewBox="0 0 16 16" role="img" aria-label="Working">${[...Array(8)].map((_,i) => `<rect x="7.2" y="1.2" width="1.6" height="4.2" rx=".8" fill="#fff" opacity="${(.14 + .86*i/7).toFixed(2)}" transform="rotate(${i*45} 8 8)"/>`).join('')}</svg>`;
+/* A gear with eight teeth, drawn from its geometry so it stays even at 15 pixels. */
+const gear = (() => { const pt = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return (8 + r * Math.cos(a)).toFixed(2) + ' ' + (8 + r * Math.sin(a)).toFixed(2); };
+  let d = ''; for (let k = 0; k < 8; k++){ const A = k * 45; d += (k ? 'L' : 'M') + pt(4.7, A - 14) + 'L' + pt(6.5, A - 8.5) + 'L' + pt(6.5, A + 8.5) + 'L' + pt(4.7, A + 14); }
+  return `<svg viewBox="0 0 16 16"><path d="${d}Z" stroke-width="1.25"/><circle cx="8" cy="8" r="2.1" stroke-width="1.25"/></svg>`; })();
+/* Today has the app's two buttons. The new directions fold them into one "more" button, as Mac panels do. */
+const ICONS = `<button class="icon" aria-label="Settings">${gear}</button>
+<button class="icon" aria-label="Quit"><svg viewBox="0 0 16 16"><path d="M8 2v5.2M4.6 4.2a5.2 5.2 0 1 0 6.8 0"/></svg></button>`;
+const MORE = `<button class="icon" aria-label="Settings and Quit" title="Settings, Quit"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" stroke-width="1.3"/><g fill="currentColor" stroke="none"><circle cx="5.1" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="10.9" cy="8" r="1"/></g></svg></button>`;
+const STATUS = `<svg width="19" height="14" viewBox="0 0 19 14"><path d="M2 5.6a10.6 10.6 0 0 1 15 0M4.6 8.3a6.9 6.9 0 0 1 9.8 0M7.2 10.9a3.3 3.3 0 0 1 4.6 0"/></svg>
+<svg width="27" height="13" viewBox="0 0 27 13"><rect x=".75" y=".75" width="22.5" height="11.5" rx="3.6"/><rect x="2.6" y="2.6" width="15" height="7.8" rx="1.9" fill="currentColor" stroke="none"/><path d="M25.4 4.4v4.2" stroke-width="1.7"/></svg>
+<svg width="16" height="14" viewBox="0 0 16 14"><rect x=".75" y="1.2" width="14.5" height="4.6" rx="2.3"/><rect x=".75" y="8.2" width="14.5" height="4.6" rx="2.3"/><circle cx="11.4" cy="3.5" r="1.1" fill="currentColor"/><circle cx="4.6" cy="10.5" r="1.1" fill="currentColor"/></svg>`;
+/* Usage left, per account: a ring in the account's colour and the number. Hover for whose it is and when it resets. */
+const usage = () => [['Metalab','#D97757',83,'3:50 PM'],['Personal','#7FB3E0',100,'6:10 PM']].map(([name,k,left,resets],i) =>
+  `<span class="u ${i ? 'hide-narrow' : ''}" title="${name}: ${left}% of the 5-hour limit left. Resets ${resets}.">${ring(left,k,14,2)}<b>${left}%</b></span>`).join('');
+const caught = () => `<div class="caught">${clawd('#D97757','idle',74,'follow')}<b>All caught up</b><span data-hobby>Gone fishing. Bugs only bite on Mondays.</span><small>Today: 5 sessions · 2h 40m of work · 31 files</small></div>`;
+const strip = (left, right) => `<div class="strip"><div class="sl">${left}</div><div></div><div class="sr">${right || MORE}</div></div>`;
+const shut = (left, right) => `<div class="wing">${left}</div><div></div><div class="wing r">${right}</div>`;
+
+/* ---------- 00 Today ---------- */
+const today = {
+  w:530,
+  closed(st){ const s = leadState(st), l = ids(st)[0];
+    return shut(clawd(l ? S[l].color : '#D97757', s, 48, 'lead'),
+      `<span style="color:${s==='waiting' ? 'var(--t-amber)' : 'var(--tint)'}" ${s==='working' ? 'data-word data-suffix=" · 2"' : ''}>${s==='waiting' ? 'Run swift test?' : s==='idle' ? '83%' : s==='working' ? 'Working · 2' : 'Done'}</span>`); },
+  open(st){
+    const top = strip(`<span class="u"><i class="dot"></i>83%</span><span class="u"><i class="dot" style="--k:#7FB3E0"></i>100%</span>`, ICONS);
+    if (!ids(st).length) return top + caught();
+    return top + `<div class="rows">` + ids(st).map(id => { const x = S[id], s = stOf(st,id);
+      const l2 = s==='waiting' ? `<span style="color:var(--t-amber)">Run: ${esc(x.askShort)}</span><span class="tm">now</span>`
+        : s==='working' ? `<span class="tn" data-word>Working</span><span class="act" data-acts="${id}">${esc(actOf(id))}</span><span class="tm" data-secs="${id}">${fmt(x.secs)}</span>`
+        : `<span style="color:var(--t-green)">Done</span><span class="tm">${x.ago||'now'}</span>`;
+      return `<div class="row ${st.flash===id?'just':''}">${clawd(x.color,s,40)}<div class="tx" style="gap:2px"><div><span class="nm">${esc(x.name)}</span><span class="tag hide-narrow">${x.model}</span><span class="tag hide-narrow"><i class="dot" style="--k:${x.k}"></i>${x.acct}</span></div><div class="l2">${l2}</div></div>${s==='waiting'
+        ? `<button class="pill" data-act="deny">Deny</button><button class="pill go" data-act="allow">Allow</button>` : `<span class="meter">${x.ctx}%<i style="--v:${x.ctx}%"></i></span>`}</div>`;
+    }).join('') + `</div>`; }
+};
+
+/* ---------- 01 Quiet ---------- */
+const quiet = {
+  w:540,
+  closed(st){ const l = ids(st)[0];
+    return shut(clawd(l ? S[l].color : '#D97757', l ? stOf(st,l) : 'idle', 48, 'lead'),
+      ids(st).map(id => { const s = stOf(st,id); return `<i class="dot" style="--k:${s==='waiting' ? 'var(--yellow)' : s==='working' ? 'var(--tint)' : 'var(--green)'};width:7px;height:7px"></i>`; }).join('')); },
+  open(st){
+    const top = strip(usage());
+    if (!ids(st).length) return top + caught();
+    return top + `<div class="list">` + ids(st).map(id => { const x = S[id], s = stOf(st,id);
+      const sub = s==='waiting' ? `<span class="y fix">Wants to run</span><code>${esc(x.ask)}</code>`
+        : s==='working' ? `<span data-acts="${id}">${esc(actOf(id))}</span>`
+        : `<span>“${esc(x.last)}”</span>`;
+      const trail = s==='waiting' ? `<button class="btn" data-act="deny">Deny</button><button class="btn pri" data-act="allow">Allow</button>`
+        : `<span class="swap hide-narrow"><span class="tm">${s==='working' ? `<span data-secs="${id}">${fmt(x.secs)}</span>` : (x.ago||'now') + ' ago'}</span><span class="tags">${x.model} · <i class="dot" style="--k:${x.k};margin:0 4px 1px 1px"></i>${x.acct}</span></span>${s==='done' ? check(18) : ring(x.ctx, x.ctx > 80 ? 'var(--red)' : '#fff', 18)}`;
+      return `<div class="qrow s-${s} ${st.flash===id?'just':''}">${clawd(x.color,s,60)}<div class="tx"><div><span class="t">${esc(x.name)}</span></div><div class="s">${sub}</div></div>${trail}</div>`;
+    }).join('') + `</div>`; }
+};
+
+/* ---------- 02 Signal ---------- */
+const signal = {
+  w:540,
+  closed(st){ const l = ids(st)[0], s = leadState(st);
+    const right = s==='waiting' ? `<span class="cap yy">Needs you</span>`
+      : s==='working' ? `${spin(14)}<span style="color:var(--label2);font-weight:500">${count(st,'working')} working</span>`
+      : s==='done' ? `${check(15)}<span style="color:var(--label2);font-weight:500">Done</span>` : '';
+    return shut(clawd(l ? S[l].color : '#D97757', s, 48, 'lead'), right); },
+  open(st){
+    const top = strip(usage());
+    if (!ids(st).length) return top + caught();
+    const group = (s, title) => { const list = ids(st).filter(id => stOf(st,id) === s); if (!list.length) return '';
+      return `<div class="sech">${title}${list.length > 1 ? `<span class="n">${list.length}</span>` : ''}</div>` + list.map(id => { const x = S[id];
+        if (s === 'waiting') return `<div class="card ${st.flash===id?'just':''}"><div class="chead">${clawd(x.color,s,60)}<div class="tx"><div><span class="t">${esc(x.name)}</span></div><div class="s"><span>Wants to run a command</span></div></div><span class="tm">now</span></div>
+          <div class="cmd">${esc(x.ask)}</div><div class="acts"><button class="btn" data-act="deny">Deny</button><button class="btn hide-narrow" data-act="allow">Always allow</button><button class="btn pri" data-act="allow">Allow</button></div></div>`;
+        return `<div class="srow ${st.flash===id?'just':''}">${clawd(x.color,s,48)}<div class="tx"><span class="t">${esc(x.name)}</span><span class="s">${s==='working' ? `<span data-acts="${id}">${esc(actOf(id))}</span>` : `<span>${x.ago||'now'} ago</span>`}</span></div>${s==='working' ? `<span class="tm" data-secs="${id}">${fmt(x.secs)}</span>${spin(15)}` : check(16)}</div>`;
+      }).join(''); };
+    return top + group('waiting','Needs you') + group('working','Working') + group('done','Done') + `<div class="tail"></div>`; }
+};
+
+/* ---------- 03 Live ---------- */
+const live = {
+  w:520,
+  lead(st){ const all = ids(st); return all.includes(st.lead) ? st.lead : all[0]; },
+  closed(st){ const l = live.lead(st), s = l ? stOf(st,l) : 'idle';
+    const right = s==='waiting' ? `<span class="badge yy">!</span>` : s==='working' ? `<span class="timer" data-clock="${l}">${clock(S[l].secs)}</span>` : s==='done' ? check(16) : '';
+    return shut(clawd(l ? S[l].color : '#D97757', s, 48, 'lead'), right); },
+  open(st){
+    const top = strip(`<span style="color:var(--label3);font-size:11.5px">Metalab · 83% left</span>`);
+    const l = live.lead(st);
+    if (!l) return top + `<div class="hero"><div class="art">${clawd('#D97757','idle',168,'follow')}</div><div class="info"><div class="kicker">Nothing running</div><div class="big">All caught up</div><div class="bodyl" data-hobby style="min-height:0">Gone fishing. Bugs only bite on Mondays.</div><div class="tm" style="margin-top:6px">Today: 5 sessions · 2h 40m of work · 31 files</div></div></div><div style="height:16px"></div>`;
+    const x = S[l], s = stOf(st,l);
+    const kicker = s==='waiting' ? `<span class="y">Needs you</span>` : s==='working' ? `<span class="tn" data-word>Working</span>` : `<span class="g">Done</span>`;
+    const body = s==='waiting' ? `Wants to run <code>${esc(x.ask)}</code>` : s==='working' ? `<span data-acts="${l}">${esc(actOf(l))}</span>` : esc(x.last);
+    const pct = Math.round(x.step / x.steps * 100);
+    const acts = s==='waiting' ? `<button class="btn" data-act="deny">Deny</button><button class="btn pri" data-act="allow">Allow</button>`
+      : s==='working' ? `<button class="btn" data-act="none">Open conversation</button>` : `<button class="btn" data-act="none">Clear</button><button class="btn pri" data-act="none">Open conversation</button>`;
+    const others = ids(st).filter(id => id !== l).map(id => { const o = stOf(st,id);
+      return `<button class="chipb" data-lead="${id}" title="Bring ${esc(S[id].name)} forward">${clawd(S[id].color,o,40)}<span>${esc(S[id].name)}</span>${o==='waiting' ? '<i class="dot" style="--k:var(--yellow);width:7px;height:7px"></i>' : o==='done' ? check(13) : spin(12)}</button>`; }).join('');
+    return top + `<div class="hero ${st.flash===l?'just':''}"><div class="art">${clawd(x.color,s,168)}</div><div class="info"><div class="kicker">${kicker}<span>· ${x.model} · ${x.acct}</span></div><div class="big">${esc(x.name)}</div><div class="bodyl">${body}</div></div></div>`
+      + `<div class="prog"><span ${s==='working' ? `data-clock="${l}"` : ''}>${s==='done' ? (x.ago||'now') + ' ago' : clock(x.secs)}</span><i style="--v:${pct}%"></i><span>${x.step} of ${x.steps} steps</span></div>`
+      + `<div class="acts2">${acts}</div><div class="others">${others}</div>`; }
+};
+/* ---------- 04 Quiet Signal ---------- */
+/* What a row can show beyond its name and status line. Each piece is "glance" (always there, small),
+   "hover" (in the details line) or "off". `compact`: it has a small form that can sit at a glance. */
+const PIECES = [
+  ['Session', [['model','Model','Fable 5.2',true], ['account','Account','Metalab',true], ['context','Conversation size','28% full',true], ['time','Time','4m',true]]],
+  ['Git', [['branch','Branch','fix/idle-rows',false], ['lines','Lines changed','+612 −77 · 7 files',false], ['pr','Pull request','PR #77 · checks passed',true]]],
+  ['Checks', [['tests','Tests','157 passed',true], ['server','Local preview','localhost:6006',false]]],
+  ['Progress', [['todo','To-do list','4 of 7 · Running the tests',true], ['helpers','Helpers at work','+2',true]]],
+  ['Cost', [['cost','Cost so far','$1.84',true]]],
+];
+const PRESETS = {
+  Minimal:   { always:false, model:'off', account:'off', context:'glance', time:'glance', branch:'off', lines:'off', pr:'off', tests:'off', server:'off', todo:'off', helpers:'off', cost:'off' },
+  Balanced:  { always:false, model:'hover', account:'hover', context:'glance', time:'glance', branch:'hover', lines:'hover', pr:'glance', tests:'glance', server:'hover', todo:'hover', helpers:'glance', cost:'off' },
+  Everything:{ always:true, model:'glance', account:'glance', context:'glance', time:'glance', branch:'hover', lines:'hover', pr:'glance', tests:'glance', server:'hover', todo:'glance', helpers:'glance', cost:'glance' },
+};
+const PREF = Object.assign({}, PRESETS.Balanced);
+/* Pieces whose small form says less than their words, so the words still come on hover. */
+const MORE_ON_HOVER = new Set(['tests','pr','todo','context']);
+const I = {
+  branch:'<svg class="ic" viewBox="0 0 12 12"><circle cx="3" cy="2.5" r="1.4"/><circle cx="3" cy="9.5" r="1.4"/><circle cx="9" cy="4" r="1.4"/><path d="M3 3.9v4.2M9 5.4c0 2-2.2 2.3-6 2.4"/></svg>',
+  pr:'<svg class="ic" viewBox="0 0 12 12"><circle cx="3" cy="2.5" r="1.4"/><circle cx="3" cy="9.5" r="1.4"/><circle cx="9" cy="9.5" r="1.4"/><path d="M3 3.9v4.2M9 8.1V5.3C9 3.9 8.2 3 6.8 3H5.7M7 1.5 5.5 3 7 4.5"/></svg>',
+  flask:'<svg class="ic" viewBox="0 0 12 12"><path d="M4.3 1.4h3.4M5 1.4v3.5L2.5 9.2a.9.9 0 0 0 .8 1.4h5.4a.9.9 0 0 0 .8-1.4L7 4.9V1.4M3.9 7.4h4.2"/></svg>',
+  link:'<svg class="ic" viewBox="0 0 12 12"><rect x="1.4" y="1.4" width="9.2" height="9.2" rx="2.3"/><path d="M4.5 7.5l3-3M5 4.4h2.6V7"/></svg>',
+  list:'<svg class="ic" viewBox="0 0 12 12"><path d="M4.8 3h5.4M4.8 6h5.4M4.8 9h5.4M1.6 3l.7.7 1.1-1.3M1.6 6l.7.7 1.1-1.3"/><circle cx="2.3" cy="9" r=".5" fill="currentColor"/></svg>',
+};
+const prColor = pr => pr.checks === 'passed' ? 'g' : pr.checks === 'failed' ? 'rd' : 'y';
+/* The details line: every piece set to "On hover", plus the words behind the small ones. */
+function details(id, s){
+  const x = S[id], want = k => PREF[k] === 'hover' || (PREF[k] === 'glance' && MORE_ON_HOVER.has(k)), out = [];
+  if (want('branch') && x.branch) out.push(`<span>${I.branch}${esc(x.branch)}</span>`);
+  if (want('lines') && x.lines) out.push(`<span><span class="g">${x.lines[0]}</span><span class="rd">${x.lines[1]}</span>· ${x.lines[2]}</span>`);
+  if (want('tests') && x.tests) out.push(`<span class="${x.tests.ok ? 'g' : 'rd'}">${I.flask}${x.tests.text}</span>`);
+  if (want('pr') && x.pr) out.push(`<span class="${prColor(x.pr)}">${I.pr}PR #${x.pr.n} · checks ${x.pr.checks}</span>`);
+  if (want('server') && x.server) out.push(`<span class="lk">${I.link}${x.server}</span>`);
+  if (want('todo') && x.todoText) out.push(`<span>${I.list}${esc(x.todoText)}</span>`);
+  if (want('helpers') && x.helpers) out.push(`<span>${x.helpers} helpers at work</span>`);
+  if (want('model')) out.push(`<span>${x.model}</span>`);
+  if (want('account')) out.push(`<span><i class="dot" style="--k:${x.k}"></i>${x.acct}</span>`);
+  if (want('context')) out.push(`<span>${x.ctx}% full</span>`);
+  if (want('time')) out.push(`<span>${s === 'done' ? (x.ago || 'now') + ' ago' : 'running ' + fmt(x.secs)}</span>`);
+  if (want('cost')) out.push(`<span>$${x.cost.toFixed(2)}</span>`);
+  return out.length ? `<div class="det">${out.join('')}</div>` : '';
+}
+/* The small pieces: tags after the name, and icons, the time and the ring at the end of the row. */
+function glance(id, s){
+  const x = S[id], on = k => PREF[k] === 'glance';
+  const tags = (on('model') ? `<span class="mtag hide-narrow">${x.model}</span>` : '') + (on('account') ? `<span class="mtag hide-narrow"><i class="dot" style="--k:${x.k}"></i>${x.acct}</span>` : '');
+  let end = '';
+  if (on('cost')) end += `<span class="tm hide-narrow">$${x.cost.toFixed(2)}</span>`;
+  if (on('tests') && x.tests) end += `<span class="${x.tests.ok ? 'g' : 'rd'}" title="Tests: ${x.tests.text}">${I.flask}</span>`;
+  if (on('pr') && x.pr) end += `<span class="${prColor(x.pr)}" title="PR #${x.pr.n}: checks ${x.pr.checks}">${I.pr}</span>`;
+  if (on('time') && s !== 'waiting') end += `<span class="tm">${s === 'working' ? `<span data-secs="${id}">${fmt(x.secs)}</span>` : (x.ago || 'now') + ' ago'}</span>`;
+  if (on('time') && s === 'waiting') end += `<span class="tm">now</span>`;
+  if (s === 'done') end += check(18);
+  else if (on('context') && s !== 'waiting') end += ring(x.ctx, x.ctx > 80 ? 'var(--red)' : '#fff', 18);
+  const pose = (state, w) => `<span class="pose">${clawd(x.color, state, w)}${on('helpers') && x.helpers ? `<b class="plus" title="${x.helpers} helpers at work">+${x.helpers}</b>` : ''}</span>`;
+  const todo = on('todo') && s === 'working' ? `<i class="todo" style="--v:${Math.round(x.step / x.steps * 100)}%" title="${esc(x.todoText)}"></i>` : '';
+  return { tags, end, pose, todo };
+}
+const blend = {
+  w:540,
+  closed(st){ const l = ids(st)[0], s = leadState(st), n = count(st,'waiting');
+    // Signal's pill when something needs you; otherwise Quiet's dots.
+    const right = s==='waiting' ? `<span class="cap yy">${n > 1 ? n + ' need you' : 'Needs you'}</span>`
+      : ids(st).map(id => `<i class="dot" style="--k:${stOf(st,id)==='working' ? 'var(--tint)' : 'var(--green)'};width:7px;height:7px"></i>`).join('');
+    return shut(clawd(l ? S[l].color : '#D97757', s, 48, 'lead'), right); },
+  open(st){
+    const top = strip(usage());
+    if (!ids(st).length) return top + caught();
+    return top + `<div class="list ${PREF.always ? 'always' : ''}">` + ids(st).map(id => { const x = S[id], s = stOf(st,id), g = glance(id, s);
+      if (s === 'waiting') return `<div class="card ${st.flash===id?'just':''}"><div class="chead">${g.pose(s,60)}<div class="tx"><div><span class="t">${esc(x.name)}</span>${g.tags}</div><div class="s"><span class="y">Wants to run a command</span></div></div><span class="gl">${g.end}</span></div>
+        <div class="cmd">${esc(x.ask)}</div><div class="acts"><button class="btn" data-act="deny">Deny</button><button class="btn hide-narrow" data-act="allow">Always allow</button><button class="btn pri" data-act="allow">Allow</button></div>${details(id, s)}</div>`;
+      const sub = s==='working' ? `<span data-acts="${id}">${esc(actOf(id))}</span>` : `<span>“${esc(x.last)}”</span>`;
+      return `<div class="brow s-${s} ${st.flash===id?'just':''}"><div class="qrow">${g.pose(s,60)}<div class="tx"><div><span class="t">${esc(x.name)}</span>${g.tags}</div><div class="s">${sub}</div></div><span class="gl">${g.end}</span></div>${g.todo}${details(id, s)}</div>`;
+    }).join('') + `</div>`; }
+};
+
+/* The settings sheet under Quiet Signal. It changes PREF and redraws that notch. */
+function buildPrefs(){
+  const st = stages.find(x => x.dir === 'blend'); if (!st) return;
+  const groups = PIECES.map(([title, list]) => `<div class="pgroup"><div class="ph">${title}</div><div class="pbox">` + list.map(([key, label, eg, compact]) =>
+    `<label class="prow"><span class="pl">${label}<small>${eg}</small></span><select data-pref="${key}" id="pref-${key}" aria-label="${label}">${compact ? '<option value="glance">At a glance</option>' : ''}<option value="hover">On hover</option><option value="off">Off</option></select></label>`).join('') + `</div></div>`).join('');
+  st.sec.insertAdjacentHTML('beforeend', `<div class="prefwrap">
+    <div class="prefnote"><div class="eyebrow">Try it</div><h3>You choose what a row shows</h3>
+      <p>This is the settings sheet the app would get. It is wired to the notch above: change something and watch the rows.</p>
+      <p><b>At a glance</b> is always on the row, small. <b>On hover</b> waits in the details line. <b>Off</b> is gone.</p></div>
+    <div class="prefs" role="group" aria-label="Session rows settings"><div class="pbar"><span><i></i><i></i><i></i></span>Session rows</div><div class="pbody">
+      <div class="pseg" role="group" aria-label="Preset">${Object.keys(PRESETS).map(n => `<button data-preset="${n}" aria-pressed="false">${n}</button>`).join('')}<button data-preset="Custom" aria-pressed="false" hidden>Custom</button></div>
+      ${groups}
+      <div class="pgroup"><div class="pbox"><label class="prow"><span class="pl">Always show details<small>Without hovering. Rows get taller.</small></span><input class="sw" type="checkbox" role="switch" id="pref-always" aria-label="Always show details"></label></div></div>
+    </div></div></div>`);
+  const box = st.sec.querySelector('.prefs');
+  const show = () => {
+    box.querySelectorAll('select').forEach(el => { el.value = PREF[el.dataset.pref]; });
+    box.querySelector('#pref-always').checked = PREF.always;
+    const match = Object.keys(PRESETS).find(n => Object.keys(PRESETS[n]).every(k => PRESETS[n][k] === PREF[k])) || 'Custom';
+    box.querySelectorAll('[data-preset]').forEach(b => { b.setAttribute('aria-pressed', b.dataset.preset === match); if (b.dataset.preset === 'Custom') b.hidden = match !== 'Custom'; });
+  };
+  box.addEventListener('change', e => {
+    if (e.target.dataset.pref) PREF[e.target.dataset.pref] = e.target.value; else if (e.target.id === 'pref-always') PREF.always = e.target.checked; else return;
+    show(); render(st);
+  });
+  box.addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (!b || !PRESETS[b.dataset.preset]) return;
+    e.stopPropagation(); Object.assign(PREF, PRESETS[b.dataset.preset]); show(); render(st); });
+  show();
+}
+const DIRS = {today, quiet, signal, live, blend};
+
+/* ---------- Wiring ---------- */
+const stages = [];
+document.getElementById('mark').insertAdjacentHTML('afterbegin', clawd('#D97757','idle',52));
+{ const cv = document.querySelector('#mark canvas'); if (window.makeClawd){ cv._api = makeClawd(cv); cv._api.setColor('#D97757'); cv._api.setMode('life'); } }
+
+document.querySelectorAll('.dir').forEach(sec => {
+  const dir = sec.dataset.dir;
+  sec.insertAdjacentHTML('beforeend', `
+    <div class="mac d-${dir}"><div class="screen">
+      <div class="menubar"><div class="l"><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span></div><div class="r">${STATUS}<span>Thu 26 Nov  10:42</span></div></div>
+      <div class="notch"><div class="clip"><div class="closed"></div><div class="panel"></div></div><i class="lens"></i></div>
+    </div></div>
+    <div class="ctl">
+      <div class="seg" role="group" aria-label="Scene">
+        <button data-scen="needs" aria-pressed="true">Needs you</button><button data-scen="working" aria-pressed="false">Working</button><button data-scen="calm" aria-pressed="false">All caught up</button>
+      </div>
+      <div class="seg" role="group" aria-label="Notch">
+        <button data-open="1" aria-pressed="true">Open</button><button data-open="0" aria-pressed="false">Closed</button>
+      </div>
+    </div>`);
+  const st = { dir, scen:'needs', open:true, peek:false, over:{}, lead:null, flash:null, hobby:null,
+    sec, el:sec.querySelector('.screen'), notch:sec.querySelector('.notch'), closedEl:sec.querySelector('.closed'), panel:sec.querySelector('.panel') };
+  stages.push(st);
+
+  sec.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.scen){ st.scen = b.dataset.scen; st.over = {}; st.lead = null; st.hobby = null; }
+    else if (b.dataset.open !== undefined){ st.open = b.dataset.open === '1'; st.peek = false; sync(st); return; }
+    else if (b.dataset.lead){ st.lead = b.dataset.lead; }
+    else if (b.dataset.act === 'allow' || b.dataset.act === 'deny'){
+      st.over.a = 'working';
+      if (b.dataset.act === 'allow'){ st.flash = 'a'; setTimeout(() => { st.flash = null; }, 1200);
+        // The tests pass a moment later: Clawd's little hop, as in the app.
+        setTimeout(() => st.sec.querySelectorAll('.just canvas.clawd').forEach(cv => cv._api && cv._api.celebrate('hop')), 2600); }
+    } else return;
+    render(st);
+  });
+  st.notch.addEventListener('mouseenter', () => { if (!st.open){ st.peek = true; layout(st); } });
+  st.notch.addEventListener('mouseleave', () => { if (st.peek){ st.peek = false; layout(st); } });
+  st.closedEl.addEventListener('click', () => { if (!st.open && !st.peek){ st.open = true; sync(st); } });
+  render(st);
+});
+
+buildPrefs();
+
+/* Starts a Clawd on every new canvas in a stage. He says what he's doing (his status word, his hobby). */
+function mount(st){
+  if (!window.makeClawd) return;
+  st.sec.querySelectorAll('canvas.clawd').forEach(cv => {
+    if (cv._api) return;
+    cv._api = makeClawd(cv, said => {
+      if (said.mode === 'working' && said.word){ cv._word = said.word; sayWord(cv, st); }
+      if (said.mode === 'life' && cv.dataset.lead){ st.hobby = said.anim; follow(st); }
+    });
+    cv._api.setColor(cv.dataset.color);
+    cv._api.setMode(cv.dataset.mode);
+  });
+  follow(st);
+}
+/* Puts a working Clawd's verb ("Smooshing…") into the row he's in. */
+function sayWord(cv, st){
+  const word = (cv.closest('.row,.qrow,.srow,.card,.hero,.closed,.caught,.chipb') || st.sec).querySelector('[data-word]');
+  if (word && cv._word) word.textContent = cv._word + (word.dataset.suffix || '');
+}
+function follow(st){
+  if (!st.hobby) return;
+  st.sec.querySelectorAll('canvas.clawd[data-follow]').forEach(cv => cv._api && cv._api.setAnim(st.hobby));
+  st.sec.querySelectorAll('[data-hobby]').forEach(el => { el.textContent = HOBBY[st.hobby] || el.textContent; });
+}
+function render(st){
+  const d = DIRS[st.dir];
+  // Keep the Clawds that are still wanted, so they carry on mid-animation.
+  const kept = {};
+  st.notch.querySelectorAll('canvas.clawd').forEach(cv => { if (cv._api) (kept[cv.dataset.key] = kept[cv.dataset.key] || []).push(cv); });
+  st.closedEl.innerHTML = d.closed(st);
+  st.panel.innerHTML = d.open(st);
+  st.notch.querySelectorAll('canvas.clawd').forEach(cv => { const old = (kept[cv.dataset.key] || []).shift(); if (old){ cv.replaceWith(old); sayWord(old, st); } });
+  mount(st);
+  // Details slide in under the row the mouse is over (a tap, on a touch screen), and the notch grows to fit.
+  const touch = matchMedia('(hover: none)').matches;
+  st.panel.querySelectorAll('.brow,.card').forEach(el => {
+    el.addEventListener('mouseenter', () => { if (!touch){ el.classList.add('hov'); layout(st); } });
+    el.addEventListener('mouseleave', () => { if (!touch){ el.classList.remove('hov'); layout(st); } });
+    el.addEventListener('click', e => { if (touch && !e.target.closest('button')){ el.classList.toggle('hov'); layout(st); } });
+  });
+  sync(st);
+}
+function sync(st){
+  st.sec.querySelectorAll('[data-scen]').forEach(b => b.setAttribute('aria-pressed', b.dataset.scen === st.scen));
+  st.sec.querySelectorAll('[data-open]').forEach(b => b.setAttribute('aria-pressed', (b.dataset.open === '1') === st.open));
+  layout(st);
+}
+function layout(st){
+  const W = st.el.clientWidth, openW = Math.min(DIRS[st.dir].w, W - 24);
+  st.el.style.setProperty('--cam', Math.min(184, Math.round(openW * .34)) + 'px');
+  st.notch.classList.toggle('narrow', openW < 440);
+  st.panel.style.width = openW + 'px';
+  const isOpen = st.open || st.peek;
+  st.notch.classList.toggle('open', isOpen);
+  st.notch.style.width = (isOpen ? openW : Math.min(st.closedEl.offsetWidth, W - 24)) + 'px';
+  st.notch.style.height = (isOpen ? st.panel.scrollHeight : st.closedEl.offsetHeight) + 'px';
+}
+addEventListener('resize', () => stages.forEach(layout));
+setTimeout(() => document.querySelector('.wrap').classList.add('live'), 300);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => stages.forEach(layout));
+
+setInterval(() => { S.a.secs++; S.b.secs++;
+  document.querySelectorAll('[data-secs]').forEach(el => { el.textContent = fmt(S[el.dataset.secs].secs); });
+  document.querySelectorAll('[data-clock]').forEach(el => { el.textContent = clock(S[el.dataset.clock].secs); });
+}, 1000);
+setInterval(() => { tick++;
+  document.querySelectorAll('[data-acts]').forEach(el => { el.textContent = actOf(el.dataset.acts); });
+}, 2600);
+</script>

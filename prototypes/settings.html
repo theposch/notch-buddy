@@ -1,0 +1,475 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notch Buddy Settings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Geist:wght@400;500;600&family=Pixelify+Sans:wght@500;700&display=swap">
+<style>
+/* Layout: one Mac settings window, centre stage. A sidebar of sections on the left; on the right each
+   section opens with a live piece of the notch, then its settings in grouped rows. Notes sit below. */
+:root{
+  --bg:#e9ebef; --ink:#13151a; --muted:#59606c; --line:#d3d8e0; --accent:#b9542f;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"Geist","Helvetica Neue",Arial,sans-serif;
+  --pixel:"Pixelify Sans",ui-monospace,monospace;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Geist",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  /* The window, in the viewer's own appearance */
+  --side:#e4e4e8; --pane:#f3f3f5; --group:#fcfcfd; --hair:rgba(0,0,0,.09); --w1:#1d1d1f; --w2:#6e6e73; --w3:#a3a3a8; --ctl:#ffffff; --ctl-line:rgba(0,0,0,.14);
+  --track:rgba(120,120,128,.26); --hover:rgba(0,0,0,.05); --shadow:0 30px 70px -30px rgba(15,20,40,.45),0 0 0 1px rgba(0,0,0,.08);
+  /* The notch preview is a picture of a screen: Apple's dark system colours, the same in both themes */
+  --n-bg:#000; --label:#fff; --label2:rgba(235,235,245,.62); --label3:rgba(235,235,245,.34); --sep:rgba(84,84,88,.62);
+  --fill:rgba(120,120,128,.36); --fill3:rgba(118,118,128,.24); --fill4:rgba(118,118,128,.15); --tile:#1c1c1e;
+  --yellow:#FFD60A; --green:#30D158; --red:#FF453A; --purple:#BF5AF2; --tint:#D97757; --on-tint:#1d0e07;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b0c0f; --ink:#f0f0ec; --muted:#9a9fa9; --line:#23262d; --accent:#e58a66;
+  --side:#27272a; --pane:#1d1d1f; --group:#29292c; --hair:rgba(255,255,255,.09); --w1:#f5f5f7; --w2:#98989d; --w3:#636366; --ctl:#3a3a3d; --ctl-line:rgba(255,255,255,.12);
+  --track:rgba(120,120,128,.36); --hover:rgba(255,255,255,.06); --shadow:0 30px 70px -30px #000,0 0 0 1px rgba(255,255,255,.1); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0b0c0f; --ink:#f0f0ec; --muted:#9a9fa9; --line:#23262d; --accent:#e58a66;
+  --side:#27272a; --pane:#1d1d1f; --group:#29292c; --hair:rgba(255,255,255,.09); --w1:#f5f5f7; --w2:#98989d; --w3:#636366; --ctl:#3a3a3d; --ctl-line:rgba(255,255,255,.12);
+  --track:rgba(120,120,128,.36); --hover:rgba(255,255,255,.06); --shadow:0 30px 70px -30px #000,0 0 0 1px rgba(255,255,255,.1); color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-block:0}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:44px;padding-block:44px 88px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--tint);outline-offset:2px;border-radius:6px}
+
+.mast{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--pixel);font-size:13px;letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(36px,6vw,64px);line-height:.96;letter-spacing:-.035em;margin:0;text-wrap:balance}
+.lede{max-width:60ch;color:var(--muted);font-size:17px;margin:0}
+
+/* ---------- The window ---------- */
+.win{display:grid;grid-template-columns:216px minmax(0,1fr);border-radius:13px;overflow:hidden;box-shadow:var(--shadow);font-family:var(--ui);font-size:13px;line-height:1.35;color:var(--w1);
+  -webkit-font-smoothing:antialiased;min-height:640px;background:var(--pane)}
+.side{background:var(--side);border-right:1px solid var(--hair);padding:12px 10px 14px;display:flex;flex-direction:column;gap:2px}
+.lights{display:flex;gap:8px;padding:4px 4px 16px}
+.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)} .lights i:nth-child(2){background:#febc2e} .lights i:nth-child(3){background:#28c840}
+.app{display:flex;align-items:center;gap:8px;padding:2px 6px 12px;margin-bottom:6px;border-bottom:1px solid var(--hair)}
+.app .face{width:44px;height:36px;border-radius:9px;background:#000;display:grid;place-items:center;flex:none;overflow:hidden}
+.app b{display:block;font-size:13px;font-weight:600}
+.app span{font-size:11px;color:var(--w2)}
+.nav{display:flex;align-items:center;gap:8px;border:0;background:none;border-radius:7px;padding:5px 8px 5px 6px;text-align:left;font-size:13px;color:var(--w1);width:100%}
+.nav:hover{background:var(--hover)}
+.nav[aria-current="true"]{background:var(--tint);color:#fff}
+.nav .ti{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 82%,#fff),var(--c));box-shadow:inset 0 0 0 .5px rgba(0,0,0,.14)}
+.nav .ti svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav[aria-current="true"] .ti{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35)}
+.navsp{flex:1}
+.pane{padding:22px 26px 28px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.ptitle{font-size:22px;font-weight:700;letter-spacing:-.018em;line-height:1.15;margin:0}
+.pdesc{color:var(--w2);margin:3px 0 0;max-width:56ch}
+.gh{font-size:12px;font-weight:600;color:var(--w2);margin:2px 0 6px 10px}
+.gf{font-size:11.5px;color:var(--w2);margin:6px 10px 0;max-width:60ch}
+.box{background:var(--group);border:1px solid var(--hair);border-radius:10px}
+.row{display:flex;align-items:center;gap:12px;min-height:44px;padding:7px 10px 7px 14px}
+.row+.row{border-top:1px solid var(--hair)}
+.lab{flex:1;min-width:0}
+.lab b{display:block;font-weight:400}
+.lab small{display:block;font-size:11.5px;color:var(--w2);margin-top:1px}
+.row .end{display:flex;align-items:center;gap:8px;flex:none}
+
+/* Controls */
+.sw{appearance:none;-webkit-appearance:none;width:38px;height:22px;border-radius:11px;background:var(--track);position:relative;margin:0;flex:none;cursor:pointer;transition:background .16s}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .16s cubic-bezier(.3,1.3,.5,1)}
+.sw:checked{background:var(--tint)} .sw:checked::after{transform:translateX(16px)}
+.sw.sm{width:30px;height:18px;border-radius:9px} .sw.sm::after{width:14px;height:14px} .sw.sm:checked::after{transform:translateX(12px)}
+select{background:var(--ctl);border:1px solid var(--ctl-line);border-radius:6px;height:24px;padding:0 6px;font-size:13px;flex:none;max-width:100%;box-shadow:0 .5px 1px rgba(0,0,0,.08)}
+.pb{border:1px solid var(--ctl-line);background:var(--ctl);border-radius:6px;height:24px;padding:0 11px;font-size:13px;box-shadow:0 .5px 1px rgba(0,0,0,.08);flex:none}
+.pb:hover{filter:brightness(.97)} .pb:active{filter:brightness(.92)}
+.pb.pri{background:var(--tint);border-color:transparent;color:#fff;font-weight:500}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--track);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;border-radius:6px;height:24px;font-size:13px;padding:0 12px;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ctl);box-shadow:0 0 0 .5px var(--ctl-line),0 1px 2px rgba(0,0,0,.14);font-weight:500}
+.swatches{display:flex;gap:9px;flex-wrap:wrap}
+.swatch{width:22px;height:22px;border-radius:50%;border:0;background:var(--c);padding:0;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--group),0 0 0 4px var(--c)}
+.key{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:6px;background:var(--ctl);border:1px solid var(--ctl-line);box-shadow:0 1px 0 var(--ctl-line);font-size:12.5px;font-weight:500}
+.dotst{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
+.eg{border:0;font:500 11px var(--ui);padding:3px 9px;border-radius:999px;background:#000;color:var(--k);white-space:nowrap;flex:none}
+.eg.off{background:none;color:var(--w3);box-shadow:inset 0 0 0 1px var(--hair)}
+.mini{font-size:12px;height:22px}
+.sub{font-size:11.5px;color:var(--w2)}
+
+/* ---------- The live preview: a strip of Mac screen with the notch ---------- */
+.pv{position:relative;height:var(--h,150px);border-radius:12px;overflow:hidden;border:1px solid var(--hair);isolation:isolate;
+  background:radial-gradient(120% 130% at 92% 135%,#f6c79b 0%,transparent 58%),radial-gradient(90% 120% at 0% -25%,#3f6f96 0%,transparent 64%),#5b7c9c}
+.swapin{display:inline-block;animation:swapin .35s ease-out}
+@keyframes swapin{from{opacity:0;transform:translateY(3px)}}
+.pvcap{position:absolute;left:0;right:0;bottom:9px;text-align:center;font-size:11px;color:rgba(255,255,255,.82);text-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none}
+.pvbtn{position:absolute;right:10px;bottom:9px;border:0;border-radius:999px;height:24px;padding:0 11px;font:500 12px var(--ui);background:rgba(0,0,0,.42);color:#fff;backdrop-filter:blur(8px)}
+.pvbtn:hover{background:rgba(0,0,0,.6)}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--n-bg);color:var(--label);font-family:var(--ui);border-radius:0 0 12px 12px;width:max-content;max-width:calc(100% - 24px);--cam:150px}
+.notch.open{border-radius:0 0 22px 22px;width:min(460px,calc(100% - 24px))}
+.notch::before,.notch::after{content:"";position:absolute;top:0;width:10px;height:10px}
+.notch::before{left:-10px;background:radial-gradient(circle at 0 100%,transparent 9.5px,#000 10px)}
+.notch::after{right:-10px;background:radial-gradient(circle at 100% 100%,transparent 9.5px,#000 10px)}
+.lens{position:absolute;left:50%;top:13px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#0d0e12;box-shadow:inset 0 0 0 1px #17181d}
+.shut{height:32px;display:grid;grid-template-columns:1fr var(--cam) 1fr;font-size:12px;font-weight:600;white-space:nowrap}
+.wing{min-width:58px;display:flex;align-items:center;padding:0 6px}
+.wing.rt{justify-content:center;padding:0 12px;gap:6px}
+canvas.clawd{display:block;flex:none;image-rendering:pixelated}
+.strip{height:32px;display:grid;grid-template-columns:1fr var(--cam) 1fr;align-items:center;font-size:11.5px;font-weight:500;color:var(--label2);white-space:nowrap}
+.strip .sl{display:flex;align-items:center;gap:14px;padding-left:16px}
+.strip .u{display:flex;align-items:center;gap:6px} .strip .u b{font-weight:500;color:#fff;font-variant-numeric:tabular-nums}
+.list{padding:2px 8px 8px}
+.brow{position:relative;border-radius:12px}
+.brow.hot{background:var(--fill4)}
+.brow+.brow::before{content:"";position:absolute;left:72px;right:12px;top:0;height:.5px;background:var(--sep)}
+.brow.hot+.brow::before{opacity:0}
+.qrow{display:flex;align-items:center;gap:8px;height:56px;padding:0 12px 0 4px}
+.tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+.tx>*{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.t{font-size:13px;font-weight:600;letter-spacing:-.006em;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:12px;color:var(--label2);overflow:hidden}
+.s>span{overflow:hidden;text-overflow:ellipsis}
+.gl{display:flex;align-items:center;gap:9px;flex:none}
+.tm{font-size:11px;color:var(--label3);font-variant-numeric:tabular-nums;flex:none}
+.ic{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.gl .ic{width:13px;height:13px}
+.mtag{font-size:10.5px;font-weight:500;color:var(--label2);background:var(--fill4);padding:1px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;flex:none}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--k,var(--tint));flex:none}
+.pose{position:relative;flex:none}
+.plus{position:absolute;right:2px;bottom:1px;font-size:9px;font-weight:700;line-height:1;padding:2px 4px;border-radius:999px;background:#3a3a3c;color:#fff;box-shadow:0 0 0 1.5px #000}
+.todo{position:absolute;left:72px;right:12px;bottom:3px;height:2px;border-radius:2px;background:var(--fill4);overflow:hidden}
+.todo::after{content:"";position:absolute;inset:0 auto 0 0;width:40%;background:var(--tint)}
+.det{display:flex;flex-wrap:wrap;gap:3px 12px;padding:0 12px 10px 72px;margin-top:-5px;font-size:11px;line-height:1.5;color:var(--label2)}
+.det>span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.y{color:var(--yellow)} .g{color:var(--green)} .rd{color:var(--red)} .lk{color:#6cb0ff} .tn{color:var(--tint)}
+.ring{flex:none;transform:rotate(-90deg);display:block}
+.ring circle{fill:none} .ring .tr{stroke:var(--fill3)} .ring .v{stroke:var(--k,#fff);stroke-linecap:round}
+.spin{flex:none;display:block;animation:spin .8s steps(8) infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cap{height:20px;padding:0 9px;border-radius:10px;display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;background:var(--yellow);color:#231c00}
+.card{margin:2px 10px 10px;background:var(--tile);border-radius:16px;padding:10px}
+.chead{display:flex;align-items:center;gap:8px}
+.cmd{margin:8px 0 10px;padding:8px 10px;border-radius:9px;background:#000;font-family:var(--mono);font-size:11.5px;color:#f2f2f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd::before{content:"$ ";color:var(--label3)}
+.acts{display:flex;gap:6px}
+.nb{flex:1;border:0;height:30px;border-radius:9px;font:600 12.5px var(--ui);background:var(--fill);color:#fff;display:flex;align-items:center;justify-content:center;gap:7px}
+.nb.pri{background:var(--tint);color:var(--on-tint)}
+.nb kbd{font:500 11px var(--ui);opacity:.7}
+
+/* Usage cards */
+.acct{display:flex;align-items:center;gap:14px;padding:12px 12px 12px 14px}
+.acct+.acct{border-top:1px solid var(--hair)}
+.big{position:relative;flex:none;display:grid;place-items:center}
+.big b{position:absolute;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.big .ring .tr{stroke:var(--track)}
+.acct .nm{display:flex;align-items:center;gap:6px;font-weight:600}
+.pen{border:0;background:none;padding:2px;border-radius:5px;color:var(--w3);display:grid;place-items:center}
+.pen:hover{color:var(--w1);background:var(--hover)}
+.pen svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.chipw{font-size:11px;color:var(--w2);background:var(--hover);padding:1px 7px;border-radius:999px}
+.aboutc{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:26px 20px 24px}
+.aboutc .stage{width:200px;height:130px;border-radius:22px;background:#000;display:grid;place-items:center}
+.aboutc h3{font-size:20px;font-weight:700;margin:10px 0 0;letter-spacing:-.015em}
+
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 36px;border-top:1px solid var(--line);padding-top:26px;color:var(--muted);font-size:15px}
+.notes b{display:block;font-family:var(--display);font-size:22px;line-height:1.1;color:var(--ink);letter-spacing:-.02em;margin-bottom:6px}
+.notes p{margin:0}
+
+@media (max-width:760px){
+  .win{grid-template-columns:minmax(0,1fr);min-height:0}
+  .side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);padding:8px;gap:4px;align-items:center}
+  .lights,.app,.navsp{display:none}
+  .nav{width:auto;white-space:nowrap;flex:none}
+  .pane{padding:18px 14px 22px}
+  .notes{grid-template-columns:minmax(0,1fr)}
+  .row{flex-wrap:wrap}
+  .notch{--cam:96px}
+}
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Notch Buddy · Settings</div>
+    <h1>Settings that look like they belong on a Mac</h1>
+    <p class="lede">Today every setting sits in one long plain list. This is the same set of settings, sorted into sections, each with a live piece of the notch at the top so you see what a choice does as you make it. Click around: it all works.</p>
+  </header>
+
+  <div class="win" id="win">
+    <nav class="side" id="side" aria-label="Settings sections"></nav>
+    <main class="pane" id="pane"></main>
+  </div>
+
+  <div class="notes">
+    <div><b>Nothing was removed.</b><p>Every setting the app has today is here. Sessions is the one new section, from the plan to let you choose what a row shows.</p></div>
+    <div><b>Preview first.</b><p>Today a change plays an example in the real notch. Here the notch sits in the window, so you never have to look away.</p></div>
+    <div><b>One accent.</b><p>Switches, the selected section and the main buttons use Clawd's clay, the way Mac apps carry their own accent colour.</p></div>
+  </div>
+</div>
+
+<script src="clawd-engine.js"></script>
+<script>
+const PALETTE = ['#D97757','#E8C66A','#8FBF6A','#6AB7D9','#B48AE0','#E0809E','#5FC2B0'];
+const SOUNDS = ['None','Basso','Blow','Bottle','Frog','Funk','Glass','Hero','Morse','Ping','Pop','Purr','Sosumi','Submarine','Tink'];
+const TONE = { needs:'var(--yellow)', bad:'var(--red)', good:'var(--green)', progress:'var(--tint)', quiet:'#9a9a95', merged:'var(--purple)' };
+/* Every moment the closed notch can tell you about: [key, label, example, tone, on by default, limit options, limit, unit] */
+const MESSAGES = [
+  ['Needs you', 'Claude is stuck until you answer, so these stay until you do.', [
+    ['askToRun','Asks to run something','Run npm test?','needs',1], ['question','Asks a question','Has a question','needs',1], ['plan','Has a plan for you to review','Plan ready','needs',1],
+    ['stillWaiting','Is still waiting on you after','Still waiting · 5m','needs',1,[2,5,10,15],5,'min']]],
+  ['Sessions', '', [
+    ['started','A session starts','New: app build','progress',0], ['todosDone','Its to-do list is finished','All 7 steps done','good',0], ['finished','A session finishes','Done','good',1],
+    ['longFinished','A session finishes after more than','Done after 24m','good',1,[5,10,20,30,60],10,'min'], ['stopped','You stop a session','Stopped','quiet',0], ['error','A session ends on an error','Hit an error','bad',1]]],
+  ['Tests', '', [['testsBroke','Tests break','Tests failed','bad',1], ['testsFixed','Broken tests pass again','Fixed it!','good',1]]],
+  ['Git and GitHub', '', [
+    ['committed','Claude commits','Committed','progress',0], ['pushed','Claude pushes','Pushed to main','progress',0], ['prOpened','Claude opens a pull request','PR #88 opened','progress',0],
+    ['checksPassed','A pull request’s checks pass','Checks passed','good',0], ['merged','A pull request merges','Merged!','merged',1]]],
+  ['Your project', '', [['preview','A local preview starts','localhost:5173 ready','progress',0], ['bigChange','A change finishes with more than','Big one!','progress',0,[200,500,1000,2000],500,'lines']]],
+  ['Limits', '', [
+    ['usageLow','Usage runs under','10% left','bad',1,[5,10,15,20,25,30,40,50],10,'%'], ['usageOut','Usage runs out','Back at 7:00 PM','quiet',1], ['usageReset','Usage resets','Fresh 5 hours','good',0],
+    ['memoryFull','The conversation is full to','Memory 90% full','bad',1,[70,80,90,95],90,'%'], ['makingRoom','Claude makes room in it','Making room…','quiet',0]]],
+];
+const PIECES = [
+  ['Session', [['model','Model','Opus 5.5',true], ['account','Account','Metalab',true], ['context','Conversation size','57% full',true], ['time','Time','4m',true]]],
+  ['Git', [['branch','Branch','tokens-2',false], ['lines','Lines changed','+88 −41 · 3 files',false], ['pr','Pull request','PR #77 · checks running',true]]],
+  ['Checks', [['tests','Tests','42 passed',true], ['server','Local preview','localhost:6006',false]]],
+  ['Progress', [['todo','To-do list','2 of 5 · Auditing colour use',true], ['helpers','Helpers at work','+2',true]]],
+  ['Cost', [['cost','Cost so far','$0.62',true]]],
+];
+const ROW_PRESETS = {
+  Minimal:   { always:false, model:'off', account:'off', context:'glance', time:'glance', branch:'off', lines:'off', pr:'off', tests:'off', server:'off', todo:'off', helpers:'off', cost:'off' },
+  Balanced:  { always:false, model:'hover', account:'hover', context:'glance', time:'glance', branch:'hover', lines:'hover', pr:'glance', tests:'glance', server:'hover', todo:'hover', helpers:'glance', cost:'off' },
+  Everything:{ always:true, model:'glance', account:'glance', context:'glance', time:'glance', branch:'hover', lines:'hover', pr:'glance', tests:'glance', server:'hover', todo:'glance', helpers:'glance', cost:'glance' },
+};
+const MSG_DEFAULT = () => Object.fromEntries(MESSAGES.flatMap(g => g[2]).map(m => [m[0], !!m[4]]));
+
+/* Everything the window can change */
+const P = {
+  pane:'look', login:true, screen:'MacBook screen', focus:true, connected:true,
+  color:'#D97757', random:false, right:'Auto', finished:'Stay until I click', peek:true, reacts:true,
+  rows:Object.assign({}, ROW_PRESETS.Balanced),
+  msg:MSG_DEFAULT(), limits:Object.fromEntries(MESSAGES.flatMap(g => g[2]).filter(m => m[5]).map(m => [m[0], m[6]])), shown:'askToRun',
+  sounds:{ needs:'Ping', done:'Glass', low:'Purr' },
+  terminal:true, desktop:true, follow:'The account you’re working in',
+  accounts:[{ id:'work', name:'Metalab', email:'you@work.com', k:'#D97757', left:83, week:61, from:'Desktop app', resets:'3:50 PM', shown:true },
+            { id:'home', name:'Personal', email:'you@home.com', k:'#7FB3E0', left:100, week:88, from:'Terminal login', resets:'6:10 PM', shown:true }],
+  keys:true, demo:'working', hobby:null,
+};
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clawd = (color, mode, w, extra) => `<canvas class="clawd" data-key="${color}|${mode}|${w}" data-mode="${mode}" data-color="${color}" ${extra || ''} style="width:${w}px;height:${Math.round(w * 26 / 40)}px" aria-hidden="true"></canvas>`;
+function ring(pct, k, size, w){ const r = size/2 - w/2 - .5, c = 2*Math.PI*r;
+  return `<svg class="ring" width="${size}" height="${size}" style="--k:${k}" role="img" aria-label="${pct}%"><circle class="tr" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${w}"/><circle class="v" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${w}" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct/100)}"/></svg>`; }
+const spin = size => `<svg class="spin" width="${size}" height="${size}" viewBox="0 0 16 16" role="img" aria-label="Working">${[...Array(8)].map((_,i) => `<rect x="7.2" y="1.2" width="1.6" height="4.2" rx=".8" fill="#fff" opacity="${(.14 + .86*i/7).toFixed(2)}" transform="rotate(${i*45} 8 8)"/>`).join('')}</svg>`;
+const gearD = (() => { const pt = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return (8 + r * Math.cos(a)).toFixed(2) + ' ' + (8 + r * Math.sin(a)).toFixed(2); };
+  let d = ''; for (let k = 0; k < 8; k++){ const A = k * 45; d += (k ? 'L' : 'M') + pt(4.7, A - 14) + 'L' + pt(6.5, A - 8.5) + 'L' + pt(6.5, A + 8.5) + 'L' + pt(4.7, A + 14); } return d + 'Z'; })();
+const I = {
+  branch:'<svg class="ic" viewBox="0 0 12 12"><circle cx="3" cy="2.5" r="1.4"/><circle cx="3" cy="9.5" r="1.4"/><circle cx="9" cy="4" r="1.4"/><path d="M3 3.9v4.2M9 5.4c0 2-2.2 2.3-6 2.4"/></svg>',
+  pr:'<svg class="ic" viewBox="0 0 12 12"><circle cx="3" cy="2.5" r="1.4"/><circle cx="3" cy="9.5" r="1.4"/><circle cx="9" cy="9.5" r="1.4"/><path d="M3 3.9v4.2M9 8.1V5.3C9 3.9 8.2 3 6.8 3H5.7M7 1.5 5.5 3 7 4.5"/></svg>',
+  flask:'<svg class="ic" viewBox="0 0 12 12"><path d="M4.3 1.4h3.4M5 1.4v3.5L2.5 9.2a.9.9 0 0 0 .8 1.4h5.4a.9.9 0 0 0 .8-1.4L7 4.9V1.4M3.9 7.4h4.2"/></svg>',
+  link:'<svg class="ic" viewBox="0 0 12 12"><rect x="1.4" y="1.4" width="9.2" height="9.2" rx="2.3"/><path d="M4.5 7.5l3-3M5 4.4h2.6V7"/></svg>',
+  list:'<svg class="ic" viewBox="0 0 12 12"><path d="M4.8 3h5.4M4.8 6h5.4M4.8 9h5.4M1.6 3l.7.7 1.1-1.3M1.6 6l.7.7 1.1-1.3"/><circle cx="2.3" cy="9" r=".5" fill="currentColor"/></svg>',
+};
+/* The sections, with the little tile each has in the sidebar */
+const SECTIONS = [
+  ['general','General','#8E8E93',`<path d="${gearD}" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke-width="1.3"/>`],
+  ['look','Look','#D97757','<g fill="#fff" stroke="none"><rect x="4" y="4" width="8" height="6"/><rect x="2" y="6" width="12" height="2"/><rect x="4" y="10" width="1.4" height="2.2"/><rect x="6.4" y="10" width="1.4" height="2.2"/><rect x="8.4" y="10" width="1.4" height="2.2"/><rect x="10.6" y="10" width="1.4" height="2.2"/></g><g fill="#D97757" stroke="none"><rect x="5.6" y="6" width="1.2" height="1.4"/><rect x="9.2" y="6" width="1.2" height="1.4"/></g>'],
+  ['rows','Sessions','#0A84FF','<path d="M6.5 4.5h6M6.5 8h6M6.5 11.5h6"/><circle cx="3.6" cy="4.5" r=".9" fill="#fff" stroke="none"/><circle cx="3.6" cy="8" r=".9" fill="#fff" stroke="none"/><circle cx="3.6" cy="11.5" r=".9" fill="#fff" stroke="none"/>'],
+  ['msgs','Messages','#FF453A','<path d="M3 4.6c0-.9.7-1.6 1.6-1.6h6.8c.9 0 1.6.7 1.6 1.6v4.3c0 .9-.7 1.6-1.6 1.6H7.6L5 12.9v-2.4h-.4C3.7 10.5 3 9.8 3 8.9Z"/>'],
+  ['sounds','Sounds','#FF375F','<path d="M3 6.4h2.1L8 4v8L5.1 9.6H3Z" fill="#fff" stroke-width="1"/><path d="M10.3 6.2a2.6 2.6 0 0 1 0 3.6M11.9 4.6a4.9 4.9 0 0 1 0 6.8"/>'],
+  ['usage','Usage and accounts','#30B14A','<circle cx="8" cy="8" r="4.8" opacity=".45"/><path d="M8 3.2a4.8 4.8 0 1 1-4.5 6.5"/>'],
+  ['keys','Shortcuts','#5E5CE6','<path d="M6 6h4v4H6ZM6 6V4.6A1.4 1.4 0 1 0 4.6 6H6M10 6V4.6A1.4 1.4 0 1 1 11.4 6H10M6 10v1.4A1.4 1.4 0 1 1 4.6 10H6M10 10v1.4a1.4 1.4 0 1 0 1.4-1.4H10"/>'],
+  ['about','About','#FF9F0A','<path d="M8 7.2v4.2" stroke-width="1.8"/><circle cx="8" cy="4.6" r="1" fill="#fff" stroke="none"/>'],
+];
+
+/* ---------- small builders ---------- */
+const head = (title, desc) => `<div><h2 class="ptitle">${title}</h2><p class="pdesc">${desc}</p></div>`;
+const group = (title, rows, foot) => `<div>${title ? `<div class="gh">${title}</div>` : ''}<div class="box">${rows.join('')}</div>${foot ? `<p class="gf">${foot}</p>` : ''}</div>`;
+const row = (label, desc, end) => `<div class="row"><div class="lab"><b>${label}</b>${desc ? `<small>${desc}</small>` : ''}</div><div class="end">${end}</div></div>`;
+const sw = (path, label, small) => `<input class="sw ${small ? 'sm' : ''}" type="checkbox" role="switch" id="sw-${path.replace(/\W/g,'-')}" data-set="${path}" aria-label="${esc(label)}" ${get(path) ? 'checked' : ''}>`;
+const pop = (path, options, label, cls) => `<select id="pop-${path.replace(/\W/g,'-')}" data-set="${path}" aria-label="${esc(label)}" class="${cls || ''}">${options.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${String(get(path)) === String(v) ? 'selected' : ''}>${esc(t)}</option>`; }).join('')}</select>`;
+const seg = (path, options, label) => `<div class="seg" role="group" aria-label="${esc(label)}">${options.map(o => `<button data-set="${path}" data-val="${esc(o)}" aria-pressed="${get(path) === o}">${esc(o)}</button>`).join('')}</div>`;
+function get(path){ return path.split('.').reduce((o, k) => o[k], P); }
+function set(path, v){ const ks = path.split('.'), last = ks.pop(); ks.reduce((o, k) => o[k], P)[last] = v; }
+
+/* ---------- the notch previews ---------- */
+const usageStrip = () => `<div class="strip"><div class="sl">${P.accounts.filter(a => a.shown).map(a => `<span class="u" title="${esc(a.name)}">${ring(a.left, a.k, 14, 2)}<b>${a.left}%</b></span>`).join('')}</div><div></div><div></div></div>`;
+const shut = (left, right) => `<div class="notch"><div class="shut"><div class="wing">${left}</div><div></div><div class="wing rt">${right}</div></div><i class="lens"></i></div>`;
+function lookPreview(){
+  const d = P.demo, color = P.random ? PALETTE[['working','waiting','done','idle'].indexOf(d) + 2] : P.color;
+  const usage = `<span style="color:var(--tint)">83%</span>`, word = `<span class="tn" data-word>Working…</span>`;
+  let right = '';
+  if (d === 'waiting') right = `<span class="y">Run npm test?</span>`;
+  else if (P.right === 'Status word') right = d === 'working' ? word : d === 'done' ? `<span class="tn">Done!</span>` : '';
+  else if (P.right === 'Sessions') right = d === 'working' ? `${spin(13)}<span class="tn">2</span>` : '';
+  else if (P.right === 'Usage left') right = usage;
+  // Auto, while Claude works: Clawd's word and usage left take turns, as in the app (see the timer below).
+  else right = d === 'working' ? `<span data-auto>${autoSide()}</span>` : d === 'done' ? `<span class="g">Done</span>` : usage;
+  const said = { working:P.right === 'Auto' ? 'Claude is working. Auto swaps every 6 seconds.' : 'Claude is working', waiting:'Claude needs you', done:'A session just finished', idle:'Nothing running: Clawd’s day off' }[d];
+  return `<div class="pv">${shut(clawd(color, d === 'idle' ? 'life' : d, 48), right)}<div class="pvcap">${said}</div><button class="pvbtn" data-do="demo">Play example</button></div>`;
+}
+function rowsPreview(){
+  const R = P.rows, on = k => R[k] === 'glance', want = k => R[k] === 'hover' || (R[k] === 'glance' && ['tests','pr','todo','context'].includes(k));
+  const det = [];
+  if (want('branch')) det.push(`<span>${I.branch}tokens-2</span>`);
+  if (want('lines')) det.push(`<span><span class="g">+88</span><span class="rd">−41</span>· 3 files</span>`);
+  if (want('tests')) det.push(`<span class="g">${I.flask}42 passed</span>`);
+  if (want('pr')) det.push(`<span class="y">${I.pr}PR #77 · checks running</span>`);
+  if (want('server')) det.push(`<span class="lk">${I.link}localhost:6006</span>`);
+  if (want('todo')) det.push(`<span>${I.list}2 of 5 · Auditing colour use</span>`);
+  if (want('helpers')) det.push(`<span>2 helpers at work</span>`);
+  if (want('model')) det.push(`<span>Opus 5.5</span>`);
+  if (want('account')) det.push(`<span><i class="dot"></i>Metalab</span>`);
+  if (want('context')) det.push(`<span>57% full</span>`);
+  if (want('time')) det.push(`<span>running 4m</span>`);
+  if (want('cost')) det.push(`<span>$0.62</span>`);
+  const tags = (on('model') ? `<span class="mtag">Opus 5.5</span>` : '') + (on('account') ? `<span class="mtag"><i class="dot"></i>Metalab</span>` : '');
+  const end = (on('cost') ? `<span class="tm">$0.62</span>` : '') + (on('tests') ? `<span class="g">${I.flask}</span>` : '') + (on('pr') ? `<span class="y">${I.pr}</span>` : '')
+    + (on('time') ? `<span class="tm">4m</span>` : '') + (on('context') ? ring(57, '#fff', 18, 2.25) : '');
+  const lines = det.length ? Math.ceil(det.join('').replace(/<[^>]+>/g,'').length / 62) : 0;
+  return `<div class="pv" style="--h:${150 + lines * 19}px"><div class="notch open">${usageStrip()}<div class="list"><div class="brow hot"><div class="qrow"><span class="pose">${clawd('#E8C66A','working',60)}${on('helpers') ? '<b class="plus">+2</b>' : ''}</span>
+    <div class="tx"><div><span class="t">Design tokens</span>${tags}</div><div class="s"><span>Editing tokens.css</span></div></div><span class="gl">${end}</span></div>${on('todo') ? '<i class="todo"></i>' : ''}${det.length ? `<div class="det">${det.join('')}</div>` : ''}</div></div><i class="lens"></i></div>
+    <div class="pvcap">${R.always ? 'Details always showing' : 'Shown with the mouse over the row'}</div></div>`;
+}
+function msgPreview(){
+  const m = MESSAGES.flatMap(g => g[2]).find(x => x[0] === P.shown), on = P.msg[m[0]];
+  const text = m[2].replace(/\d+(?=m$|% left| full)/, n => P.limits[m[0]] || n);
+  return `<div class="pv">${shut(clawd('#D97757', m[3] === 'needs' ? 'waiting' : m[3] === 'good' || m[3] === 'merged' ? 'done' : 'working', 48), on ? `<span style="color:${TONE[m[3]]}">${esc(text)}</span>` : '')}
+    <div class="pvcap">${on ? 'What the closed notch says. Click any example below to see it here.' : 'Switched off: Clawd still reacts, but the notch stays quiet.'}</div></div>`;
+}
+function keysPreview(){
+  return `<div class="pv" style="--h:206px"><div class="notch open"><div class="strip"><div></div><div></div><div></div></div><div class="card"><div class="chead">${clawd('#6AB7D9','waiting',60)}<div class="tx"><div><span class="t">Fix idle rows</span></div><div class="s"><span class="y">Wants to run a command</span></div></div></div>
+    <div class="cmd">swift test --filter IdleRowTests</div><div class="acts"><span class="nb">Deny${P.keys ? '<kbd>⌥⌘N</kbd>' : ''}</span><span class="nb pri">Allow${P.keys ? '<kbd>⌥⌘Y</kbd>' : ''}</span></div></div><i class="lens"></i></div></div>`;
+}
+
+/* ---------- the sections ---------- */
+const PANES = {
+  look: () => head('Look', 'How Clawd and the closed notch look, and how they behave.') + lookPreview()
+    + group('Clawd', [
+        row('Colour', P.random ? 'Each session gets its own colour.' : '', `<div class="swatches" role="group" aria-label="Clawd colour">${PALETTE.map(c => `<button class="swatch" style="--c:${c}" data-set="color" data-val="${c}" aria-pressed="${!P.random && P.color === c}" aria-label="${c}"></button>`).join('')}</div>`),
+        row('Random for each session', 'So you can tell sessions apart at a glance.', sw('random','Random for each session')),
+        row('Clawd reacts', 'A little animation when tests pass or fail, Claude pushes, a pull request merges, and more.', sw('reacts','Clawd reacts')) ])
+    + group('Closed notch', [
+        row('Right side shows', { 'Auto':'Switches between what Clawd is doing and your usage left.', 'Status word':'What Clawd is doing: “Smooshing…”, “Done!”.', 'Sessions':'How many sessions are busy.', 'Usage left':'How much of your 5-hour limit is left.' }[P.right], seg('right', ['Auto','Status word','Sessions','Usage left'], 'Right side of the notch')),
+        row('Peek open', 'When Claude needs you, and for big news like a merge.', sw('peek','Peek open')),
+        row('Finished sessions', '', pop('finished', ['Stay until I click','Hide right away'], 'Finished sessions')) ]),
+
+  rows: () => { const R = P.rows, match = Object.keys(ROW_PRESETS).find(n => Object.keys(ROW_PRESETS[n]).every(k => ROW_PRESETS[n][k] === R[k])) || 'Custom';
+    return head('Sessions', 'What each session row shows. At a glance is always on the row; On hover waits in the details line.') + rowsPreview()
+    + `<div class="seg" role="group" aria-label="Preset">${[...Object.keys(ROW_PRESETS), ...(match === 'Custom' ? ['Custom'] : [])].map(n => `<button data-do="rowpreset" data-val="${n}" aria-pressed="${n === match}">${n}</button>`).join('')}</div>`
+    + PIECES.map(([title, list]) => group(title, list.map(([key, label, eg, compact]) => row(label, eg, pop('rows.' + key, [...(compact ? [['glance','At a glance']] : []), ['hover','On hover'], ['off','Off']], label))))).join('')
+    + group('', [row('Always show details', 'Without hovering. Rows get taller.', sw('rows.always','Always show details'))]); },
+
+  msgs: () => { const all = MESSAGES.flatMap(g => g[2]), def = MSG_DEFAULT();
+    const preset = all.every(m => !P.msg[m[0]]) ? 'None' : all.every(m => P.msg[m[0]]) ? 'All' : all.every(m => P.msg[m[0]] === def[m[0]]) ? 'Important' : 'Custom';
+    return head('Messages', 'Which moments the closed notch tells you about. A message waits its turn instead of covering a more important one.') + msgPreview()
+    + `<div class="seg" role="group" aria-label="Show">${['None','Important','All', ...(preset === 'Custom' ? ['Custom'] : [])].map(n => `<button data-do="msgpreset" data-val="${n}" aria-pressed="${n === preset}">${n}</button>`).join('')}</div>`
+    + MESSAGES.map(([title, note, list]) => group(title, list.map(([key, label, eg, tone, , opts, , unit]) => `<div class="row"><div class="lab"><b>${esc(label)}${opts ? ` ${pop('limits.' + key, opts.map(o => [o, unit === '%' ? o + '%' : o.toLocaleString() + ' ' + unit]), label + ' limit', 'mini')}` : ''}</b></div>
+        <div class="end"><button class="eg ${P.msg[key] ? '' : 'off'}" style="--k:${TONE[tone]}" data-do="show" data-val="${key}" title="Show it in the preview">${esc(eg.replace(/\d+(?=m$|% left| full)/, n => P.limits[key] || n))}</button>${sw('msg.' + key, label, true)}</div></div>`), note)).join(''); },
+
+  sounds: () => head('Sounds', 'One sound for each moment worth hearing. All of them stay quiet while a Focus is on.')
+    + group('', [['needs','When Claude needs you'], ['done','When a session finishes'], ['low','When usage runs low']].map(([k, label]) =>
+        row(label, '', `${pop('sounds.' + k, SOUNDS, label)}<button class="pb" data-do="none" aria-label="Play ${label}" title="Play">▶</button>`)), 'These are your Mac’s own alert sounds, the same ones System Settings offers.'),
+
+  usage: () => head('Usage and accounts', 'How much of your Claude limits is left, and which accounts Notch Buddy knows.')
+    + `<div class="pv" style="--h:96px"><div class="notch open">${usageStrip()}<i class="lens"></i></div><div class="pvcap">The top of the open notch</div></div>`
+    + group('Accounts', P.accounts.map((a, i) => `<div class="acct" style="${a.shown ? '' : 'opacity:.5'}"><div class="big">${ring(a.left, a.k, 52, 5)}<b>${a.left}%</b></div>
+        <div class="lab"><div class="nm">${esc(a.name)}<button class="pen" data-do="rename" data-val="${i}" aria-label="Rename ${esc(a.name)}" title="Rename"><svg viewBox="0 0 12 12"><path d="M8.2 1.9l1.9 1.9L4.2 9.7l-2.5.6.6-2.5Z"/></svg></button><span class="chipw">${a.from}</span></div>
+        <small>${a.email}</small><small>5 hours: ${a.left}% left, resets ${a.resets} · Week: ${a.week}% left</small></div>${sw('accounts.' + i + '.shown', 'Show ' + a.name)}</div>`), 'Rename them so you can tell them apart. Emails stay on your Mac.')
+    + group('Where usage comes from', [
+        row('Read the Terminal’s Claude login', P.terminal ? 'Working. Checked 1 minute ago.' : 'The account Claude Code in the Terminal is logged in to. macOS asks you first.', sw('terminal','Read the Terminal login')),
+        row('Read the desktop app’s login', P.desktop ? 'Working. Checked 1 minute ago.' : 'The account the Claude desktop app is logged in to. macOS asks you first.', sw('desktop','Read the desktop app login')) ],
+        'Claude Code in the Terminal also sends usage while it runs. Logins are only sent to Anthropic.')
+    + group('', [row('Closed notch shows usage for', '', pop('follow', ['The account you’re working in','Whichever is lowest', ...P.accounts.map(a => a.name)], 'Closed notch shows usage for'))]),
+
+  keys: () => head('Shortcuts', 'Answer Claude from the keyboard, in any app, without opening the notch.') + keysPreview()
+    + group('', [
+        row('Keyboard shortcuts', 'They answer the request at the top of the notch.', sw('keys','Keyboard shortcuts')),
+        row('Allow', '', `<span class="key">⌥</span><span class="key">⌘</span><span class="key">Y</span>`),
+        row('Deny', '', `<span class="key">⌥</span><span class="key">⌘</span><span class="key">N</span>`) ]),
+
+  general: () => head('General', 'Where Notch Buddy lives, and its connection to Claude Code.')
+    + group('', [
+        row('Open at login', '', sw('login','Open at login')),
+        row('Show on', '', pop('screen', ['MacBook screen','External display, when connected'], 'Show on')),
+        row('Quiet during Focus', 'No sounds and no peeking while a Focus is on.', sw('focus','Quiet during Focus')) ])
+    + group('Claude Code', [
+        `<div class="row"><span class="dotst" style="${P.connected ? '' : 'background:var(--w3);box-shadow:none'}"></span><div class="lab"><b>${P.connected ? 'Connected' : 'Not connected'}</b><small>${P.connected ? 'Last heard from Claude Code 12 seconds ago.' : 'Notch Buddy can’t see your sessions until you connect.'}</small></div><div class="end"><button class="pb ${P.connected ? '' : 'pri'}" data-do="connect">${P.connected ? 'Disconnect' : 'Connect'}</button></div></div>` ],
+        'Connecting adds Notch Buddy to Claude Code’s settings file. Disconnecting puts the file back exactly as it was.')
+    + group('Updates', [ row('Notch Buddy 0.2', 'Up to date. Checks once a day.', `<button class="pb" data-do="none">Check now</button>`) ]),
+
+  about: () => `<div class="aboutc"><div class="stage">${clawd(P.color, 'life', 168, 'data-lead="1"')}</div><h3>Notch Buddy</h3><div class="sub">Version 0.2</div>
+      <p class="pdesc" style="margin:8px auto 0;max-width:38ch" data-hobby>Clawd shows what Claude Code is doing, right in your notch.</p>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="pb" data-do="none">Release notes</button><button class="pb" data-do="none">GitHub</button></div></div>`,
+};
+const HOBBY = { coffee:'Coffee first. Then code. Maybe.', nightcap:'Off to bed. Wake me if it compiles.', fish:'Gone fishing. Bugs only bite on Mondays.', read:'Reading the docs. For fun. Yes, really.',
+  guitar:'Jamming. Back in five (songs).', bubbles:'Blowing bubbles. Very important work.', telescope:'Looking for bugs in space.', tea:'Tea break. Steeping, not sleeping.', surf:'Catching waves, not errors.',
+  sax:'Smooth jazz hour. No meetings, please.', paint:'Painting. It’s abstract, like the specs.', water:'Watering plants. They grow faster than tests.', balloons:'Party of one. Everything shipped.',
+  lollipop:'Lollygagging, professionally.', gaming:'Gaming. Strictly research.', headphones:'Lo-fi beats to do nothing to.', icecream:'Ice cream break. Earned it.', kite:'Flying a kite. Head in the cloud.',
+  sunbathe:'Out of office. Very out.', skate:'Kickflipping over merge conflicts.', cat:'Petting the cat. The cat says hi.', yawn:'Long day of doing nothing.' };
+
+/* ---------- drawing and wiring ---------- */
+const side = document.getElementById('side'), pane = document.getElementById('pane'), win = document.getElementById('win');
+function drawSide(){
+  side.innerHTML = `<div class="lights"><i></i><i></i><i></i></div><div class="app"><div class="face">${clawd(P.random ? '#D97757' : P.color, 'life', 44)}</div><div><b>Notch Buddy</b><span>Version 0.2</span></div></div>`
+    + SECTIONS.map(([id, label, c, glyph], i) => `${i === 7 ? '<div class="navsp"></div>' : ''}<button class="nav" data-go="${id}" aria-current="${P.pane === id}"><span class="ti" style="--c:${c}"><svg viewBox="0 0 16 16">${glyph}</svg></span>${label}</button>`).join('');
+  mount(side);
+}
+/* Clawds that are still wanted keep going mid-animation when the window redraws. */
+function draw(){
+  const focus = document.activeElement && document.activeElement.id, kept = {};
+  pane.querySelectorAll('canvas.clawd').forEach(cv => { if (cv._api) (kept[cv.dataset.key] = kept[cv.dataset.key] || []).push(cv); });
+  pane.innerHTML = PANES[P.pane]();
+  pane.querySelectorAll('canvas.clawd').forEach(cv => { const old = (kept[cv.dataset.key] || []).shift(); if (old){ cv.replaceWith(old); say(old); } });
+  mount(pane);
+  side.querySelectorAll('.nav').forEach(b => b.setAttribute('aria-current', b.dataset.go === P.pane));
+  if (focus){ const el = document.getElementById(focus); if (el) el.focus({ preventScroll:true }); }
+}
+function say(cv){ const w = pane.querySelector('[data-word]'); if (w && cv._word && pane.contains(cv)) w.textContent = cv._word; }
+function mount(root){
+  if (!window.makeClawd) return;
+  root.querySelectorAll('canvas.clawd').forEach(cv => { if (cv._api) return;
+    cv._api = makeClawd(cv, said => {
+      if (said.mode === 'working' && said.word){ cv._word = said.word; say(cv); }
+      if (said.mode === 'life' && cv.dataset.lead){ const h = pane.querySelector('[data-hobby]'); if (h && HOBBY[said.anim]) h.textContent = HOBBY[said.anim]; }
+    });
+    cv._api.setColor(cv.dataset.color); cv._api.setMode(cv.dataset.mode); });
+}
+/* Auto's two faces. The app swaps between them every 6 seconds while Claude works. */
+let autoUsage = false;
+function autoSide(){
+  return autoUsage ? `<span class="swapin" style="color:var(--tint)">83%</span>` : `<span class="tn swapin" data-word>Working…</span>`;
+}
+setInterval(() => {
+  autoUsage = !autoUsage;
+  // Only the words change, so an open menu or a control you're using is left alone.
+  const el = pane.querySelector('[data-auto]'); if (!el) return;
+  el.innerHTML = autoSide();
+  const cv = pane.querySelector('.pv canvas.clawd'); if (cv) say(cv);
+}, 6000);
+let demoRun = 0;
+function playDemo(){ const run = ++demoRun, steps = ['working','waiting','done','idle','working'];
+  steps.forEach((s, i) => setTimeout(() => { if (run === demoRun && P.pane === 'look'){ P.demo = s; draw(); } }, i * 2200)); }
+
+win.addEventListener('click', e => {
+  const go = e.target.closest('[data-go]'); if (go){ P.pane = go.dataset.go; demoRun++; P.demo = 'working'; draw(); try { history.replaceState(null, '', '#' + P.pane); } catch (err) {} return; }
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.set){ set(b.dataset.set, b.dataset.val); if (b.dataset.set === 'color'){ P.random = false; drawSide(); } }
+  else if (b.dataset.do === 'demo') return playDemo();
+  else if (b.dataset.do === 'rowpreset'){ if (ROW_PRESETS[b.dataset.val]) Object.assign(P.rows, ROW_PRESETS[b.dataset.val]); }
+  else if (b.dataset.do === 'msgpreset'){ const def = MSG_DEFAULT(); Object.keys(P.msg).forEach(k => { P.msg[k] = b.dataset.val === 'All' ? true : b.dataset.val === 'None' ? false : b.dataset.val === 'Important' ? def[k] : P.msg[k]; }); }
+  else if (b.dataset.do === 'show'){ P.shown = b.dataset.val; }
+  else if (b.dataset.do === 'connect'){ P.connected = !P.connected; }
+  else if (b.dataset.do === 'rename'){ const a = P.accounts[+b.dataset.val]; a.name = a.name === 'Metalab' ? 'Work' : a.name === 'Work' ? 'Metalab' : a.name === 'Personal' ? 'Home' : 'Personal'; }
+  else return;
+  draw();
+});
+win.addEventListener('change', e => { const el = e.target; if (!el.dataset.set) return;
+  const v = el.type === 'checkbox' ? el.checked : /^\d+$/.test(el.value) ? +el.value : el.value;
+  set(el.dataset.set, v);
+  if (el.dataset.set.startsWith('msg.') || el.dataset.set.startsWith('limits.')) P.shown = el.dataset.set.split('.')[1];
+  if (el.dataset.set === 'random') drawSide();
+  draw();
+});
+const start = location.hash.slice(1); if (PANES[start]) P.pane = start;
+addEventListener('hashchange', () => { const h = location.hash.slice(1); if (PANES[h] && h !== P.pane){ P.pane = h; demoRun++; P.demo = 'working'; draw(); } });
+drawSide(); draw();
+</script>
