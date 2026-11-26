@@ -232,7 +232,7 @@ final class NotchModel {
     /// When we last heard from Claude Code at all.
     private(set) var lastHeard: Date?
     /// Usage from the logins on this Mac (set by the app; tests leave them out).
-    @ObservationIgnored var loginChecks: [LoginUsage] = []
+    var loginChecks: [LoginUsage] = []
     /// A turn just ended: a good moment to look at usage again.
     @ObservationIgnored var onDone: (() -> Void)?
     /// The row the mouse is over; a "needs you" row then shows the whole command.
@@ -241,6 +241,9 @@ final class NotchModel {
     var welcome = false
     /// A newer version on the downloads page, if there is one.
     var update: Updater.Release?
+    /// What clicking Update is doing.
+    enum Updating: Equatable { case idle, working, failed(String) }
+    private(set) var updating = Updating.idle
     /// Goes up whenever a setting changes, so everything that reads one redraws.
     private(set) var prefs = 0
     /// Auto mode fades between the status word and usage left.
@@ -460,6 +463,61 @@ final class NotchModel {
         return CGSize(width: width, height: geometry.barHeight + body)
     }
 
+    // MARK: Updating
+
+    /// Update, clicked: download the new version, check it, swap it in and restart.
+    /// A release with nothing to install, or a second click after it failed, opens the downloads page.
+    func installUpdate() {
+        guard let update, updating != .working else { return }
+        if case .failed = updating { NSWorkspace.shared.open(update.page); return }
+        guard update.download != nil else { NSWorkspace.shared.open(update.page); return }
+        updating = .working
+        Task { [weak self] in
+            do { try await Updater.install(update) } catch {
+                Updater.log.notice("update to \(update.version, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                withAnimation { self?.updating = .failed(error.localizedDescription) }
+            }
+        }
+    }
+
+    // MARK: Usage that needs your OK
+
+    /// What the top strip says when macOS won't let us read a login until you say so.
+    struct UsageHint: Equatable {
+        /// "Usage needs your OK", when there's room and nothing else to show.
+        var text: String?
+        /// "Allow", "Allow usage", "Allow Terminal".
+        var button: String
+    }
+
+    /// Logins switched on in Settings that are waiting for your OK in macOS.
+    var loginsNeedingOK: [LoginUsage] { loginChecks.filter { $0.state == .needsOK } }
+
+    static func usageHint(needing: [LoginUsage.Source], hasFigures: Bool, short: Bool) -> UsageHint? {
+        guard let first = needing.first else { return nil }
+        // Another account's usage is showing: just a button that says which login is missing.
+        if hasFigures {
+            return UsageHint(button: needing.count == 1 ? "Allow \(first.title.components(separatedBy: " ")[0])" : "Allow usage")
+        }
+        return short ? UsageHint(button: "Allow usage") : UsageHint(text: "Usage needs your OK", button: "Allow")
+    }
+
+    func usageHint(short: Bool) -> UsageHint? {
+        Self.usageHint(needing: loginsNeedingOK.map(\.source), hasFigures: figuresWidth(short: true) > 0, short: short)
+    }
+
+    /// Allow, clicked: macOS shows its prompt (choose "Always Allow" there).
+    func allowUsage() {
+        let waiting = loginsNeedingOK
+        Task { for check in waiting { await check.check(asking: true) } }
+    }
+
+    static let smallButtonFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    /// How wide a small button in the top strip is.
+    static func smallButtonWidth(_ title: String) -> CGFloat {
+        ceil((title as NSString).size(withAttributes: [.font: smallButtonFont]).width) + 18
+    }
+
     // MARK: The open notch's top strip
 
     static let topFont = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -470,6 +528,14 @@ final class NotchModel {
     /// How wide the usage at the top of the open notch is. `short` leaves out account names
     /// (or, with one account, the reset time); hovering still shows them.
     func usageStripWidth(short: Bool) -> CGFloat {
+        let figures = figuresWidth(short: short)
+        guard let hint = usageHint(short: short) else { return figures }
+        let words = hint.text.map { Self.topWidth($0) + 8 } ?? 0
+        return figures + (figures > 0 ? 6 : 0) + words + Self.smallButtonWidth(hint.button)
+    }
+
+    /// The figures alone, without a hint that usage needs your OK.
+    private func figuresWidth(short: Bool) -> CGFloat {
         var pieces: [CGFloat] = []
         if severalAccounts {
             for account in shownAccounts {
@@ -496,8 +562,8 @@ final class NotchModel {
     var openWidth: CGFloat {
         let strip = usageStripWidth(short: shortUsageStrip)
         guard geometry.hasNotch else {
-            // Usage, a gap, then Settings and Quit, all in one line.
-            return max(NotchGeometry.openWidthWithoutCamera, strip + 36 + 24 + 56)
+            // Usage, a gap, then Update (when there is one), Settings and Quit, all in one line.
+            return max(NotchGeometry.openWidthWithoutCamera, strip + 36 + 24 + 56 + (update == nil ? 0 : Self.smallButtonWidth("Update") + 6))
         }
         // Wide enough that usage left and the buttons fit either side of the camera.
         return max(NotchGeometry.openSize.width, geometry.cameraWidth + 2 * 175, geometry.cameraWidth + 2 * (strip + 26))

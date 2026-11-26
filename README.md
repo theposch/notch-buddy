@@ -23,7 +23,7 @@ Notch Buddy runs on your Mac only. It has no account, no analytics and no server
 - **Claude Code events** come from Claude Code itself, through a small helper Notch Buddy adds to Claude Code's settings. They stay on your Mac.
 - **Usage** comes from Claude Code's status line while it runs in the Terminal.
 - **Usage without the Terminal** is off until you switch it on in Settings > Usage and accounts. It reads a login already on your Mac (Claude Code's, or the Claude desktop app's) and asks Anthropic for your usage, the same way other usage apps do. macOS asks your permission first. The login is kept in memory only and is only ever sent to Anthropic. This isn't an official Anthropic feature, so it may stop working; the status line stays as a backup.
-- **Updates**: once a day it checks this project's Releases page for a newer version, and only tells you. It never downloads anything by itself.
+- **Updates**: once a day it checks this project's Releases page for a newer version and tells you. Nothing is downloaded until you click **Update**; then it downloads that version from the Releases page, checks it against the page's fingerprint, installs it and restarts.
 
 ## Build it yourself
 

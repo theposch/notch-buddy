@@ -141,8 +141,16 @@ struct NotchView: View {
                     .contentTransition(.numericText())
                     .foregroundStyle(Self.usageColor(week, normal: .white))
             }
+            // A login is switched on but macOS wants your OK first: say so, with the button that asks.
+            if let hint = model.usageHint(short: model.shortUsageStrip) {
+                if let text = hint.text { Text(text).foregroundStyle(Self.amber).fixedSize().padding(.trailing, 2) }
+                Button(hint.button) { model.allowUsage() }
+                    .buttonStyle(SmallPill(fill: Self.amber))
+                    .help("macOS asks whether Notch Buddy may read the login. Choose \u{201C}Always Allow\u{201D}.")
+            }
             // Leave the camera clear on a MacBook; other screens have nothing to avoid.
             Spacer(minLength: model.geometry.hasNotch ? model.geometry.cameraWidth + 16 : 16)
+            if let update = model.update { UpdateButton(model: model, update: update) }
             HeaderButton(symbol: "gearshape", help: "Settings", action: actions.settings)
             HeaderButton(symbol: "power", help: "Quit Notch Buddy", action: actions.quit)
         }
@@ -256,6 +264,54 @@ struct HeaderButton: View {
         .buttonStyle(.plain)
         .onHover { hover = $0 }
         .help(help)
+    }
+}
+
+/// "Update" in the top strip when a newer version is out: one click downloads it, installs it
+/// and restarts. A spinner while it does; a warning if it couldn't (click for the downloads page).
+struct UpdateButton: View {
+    let model: NotchModel
+    let update: Updater.Release
+
+    var body: some View {
+        switch model.updating {
+        case .idle:
+            Button("Update") { model.installUpdate() }
+                .buttonStyle(SmallPill(fill: NotchView.clay))
+                .help("Install version \(update.version) and restart Notch Buddy")
+        case .working:
+            ProgressView()
+                .controlSize(.small)
+                .colorScheme(.dark)
+                .frame(width: 22, height: 22)
+                .help("Installing version \(update.version)\u{2026}")
+        case .failed(let why):
+            Button { model.installUpdate() } label: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(NotchView.amber)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("\(why) Click to open the downloads page.")
+        }
+    }
+}
+
+/// A small rounded button for the top strip.
+struct SmallPill: ButtonStyle {
+    let fill: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Font(NotchModel.smallButtonFont))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 9)
+            .frame(height: 20)
+            .background(Capsule().fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
+            .contentShape(Capsule())
+            .fixedSize()
     }
 }
 

@@ -26,6 +26,12 @@ final class LoginUsage {
         case problem(String)
     }
 
+    /// For tests: a login in a given state that never checks anything.
+    init(_ source: Source, state: State) {
+        self.source = source
+        self.state = state
+    }
+
     /// What each check did, for Console (never the login itself).
     nonisolated static let log = Logger(subsystem: "local.notchbuddy", category: "usage")
 

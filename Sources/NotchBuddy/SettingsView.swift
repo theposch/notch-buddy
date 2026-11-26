@@ -108,8 +108,22 @@ struct SettingsView: View {
             Section {
                 ConnectionRow(model: model, connection: connection)
                 if let update = model.update {
-                    LabeledContent("Version \(update.version) is available") {
-                        Link("Download", destination: update.page)
+                    LabeledContent {
+                        if model.updating == .working {
+                            ProgressView().controlSize(.small)
+                        } else if case .failed = model.updating {
+                            Link("Open downloads page", destination: update.page)
+                        } else {
+                            Button(update.download == nil ? "Download" : "Update now") { model.installUpdate() }
+                        }
+                    } label: {
+                        Text("Version \(update.version) is available")
+                        if case .failed(let why) = model.updating {
+                            Text(why).foregroundStyle(.red)
+                        } else if update.download != nil {
+                            Text(model.updating == .working ? "Downloading and installing\u{2026}"
+                                 : "Downloads it, installs it and restarts Notch Buddy.")
+                        }
                     }
                 }
             }
