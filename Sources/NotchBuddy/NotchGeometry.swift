@@ -5,9 +5,9 @@ struct NotchGeometry: Equatable {
     /// Each side of the closed notch sticks out this far past the camera.
     static let wing: CGFloat = 56
     /// The open panel.
-    static let openSize = CGSize(width: 470, height: 140)
+    static let openSize = CGSize(width: 520, height: 140)
     /// Other screens have no camera to leave room for, so the open panel can be narrower.
-    static let openWidthWithoutCamera: CGFloat = 440
+    static let openWidthWithoutCamera: CGFloat = 480
     static let closedRadius: CGFloat = 12
     static let openRadius: CGFloat = 24
     /// The curved shoulders where the notch meets the menu bar.

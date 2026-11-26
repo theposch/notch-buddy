@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// Which messages the closed notch shows, grouped by topic. Each row says when it shows,
-/// what it looks like, and has a switch. Some have a limit you can set ("under 10%").
-struct MessagesView: View {
+/// Settings > Messages: which moments the closed notch tells you about, grouped by topic.
+/// Each row says when it shows, what it looks like, and has a switch. Some have a limit you can set
+/// ("under 10%"). The notch at the top shows the one you clicked last.
+struct MessagesPane: View {
     let model: NotchModel
-    @Environment(\.dismiss) private var dismiss
     @State private var chosen = Prefs.messages
+    @State private var shown = Notice.Kind.askToRun
 
     /// None, Important or All; Custom when you've picked your own mix.
     enum Preset: String, CaseIterable {
@@ -28,46 +29,46 @@ struct MessagesView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section {
-                    Picker("Show", selection: preset) {
-                        ForEach(Preset.allCases, id: \.self) { preset in
-                            // Custom is where you end up, not something to pick.
-                            if preset != .custom || self.preset.wrappedValue == .custom { Text(preset.rawValue).tag(preset) }
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                } footer: {
-                    Text("A message waits its turn instead of covering a more important one. Clawd still reacts to the ones you switch off.")
-                        .foregroundStyle(.secondary)
-                }
+        let on = chosen.contains(shown)
+        PaneHeader(title: "Messages", text: "Which moments the closed notch tells you about. A message waits its turn instead of covering a more important one.")
 
-                ForEach(Notice.Kind.topics, id: \.title) { topic in
-                    Section {
-                        ForEach(topic.kinds, id: \.self) { kind in
-                            MessageRow(kind: kind, on: Binding(
-                                get: { chosen.contains(kind) },
-                                set: { on in if on { chosen.insert(kind) } else { chosen.remove(kind) } }),
-                                tryOut: { model.tryOut(kind) })
-                        }
-                    } header: {
-                        Text(topic.title)
-                    } footer: {
-                        if let note = topic.note { Text(note).foregroundStyle(.secondary) }
+        NotchPreview(caption: on ? "What the closed notch says. Click any example below to see it here."
+                                 : "Switched off: Clawd still reacts, but the notch stays quiet.") {
+            ClosedNotch(mode: shown.tone == .needs ? "waiting" : shown.tone == .good ? "done" : "working", color: model.restingColor, wing: 150) {
+                if on {
+                    if shown.tone == .needs {
+                        Text(shown.example).foregroundStyle(Color(red: 0x23 / 255, green: 0x1C / 255, blue: 0))
+                            .padding(.horizontal, 9).frame(height: 20).background(Capsule().fill(NotchView.amber)).fixedSize()
+                    } else {
+                        Text(shown.example).foregroundStyle(shown.color)
                     }
                 }
             }
-            .formStyle(.grouped)
-
-            Divider()
-            HStack {
-                Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
-            }
-            .padding(12)
+            .id("\(shown.rawValue)\(Prefs.limit(shown))")
         }
-        .frame(width: 520, height: 600)
+
+        Picker("Show", selection: preset) {
+            ForEach(Preset.allCases, id: \.self) { preset in
+                // Custom is where you end up, not something to pick.
+                if preset != .custom || self.preset.wrappedValue == .custom { Text(preset.rawValue).tag(preset) }
+            }
+        }
+        .pickerStyle(.segmented).labelsHidden()
+
+        ForEach(Notice.Kind.topics, id: \.title) { topic in
+            SettingsGroup(title: topic.title, footer: topic.note) {
+                ForEach(topic.kinds, id: \.self) { kind in
+                    MessageRow(kind: kind, on: Binding(
+                        get: { chosen.contains(kind) },
+                        set: { on in if on { chosen.insert(kind) } else { chosen.remove(kind) }; shown = kind }),
+                        tryOut: { shown = kind; model.tryOut(kind) })
+                    .padding(.leading, 14)
+                    .padding(.trailing, 10)
+                    .frame(minHeight: 40)
+                    .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.09)).frame(height: 1) }
+                }
+            }
+        }
         .onChange(of: chosen) { _, now in Prefs.messages = now }
     }
 }

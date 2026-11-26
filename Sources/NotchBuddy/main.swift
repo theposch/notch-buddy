@@ -25,4 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notch = NotchController()
         Focus.askOnce()
     }
+
+    /// Notch Buddy has no Dock icon or menu, so opening it again while it runs opens its settings.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        notch?.showSettings()
+        return false
+    }
 }

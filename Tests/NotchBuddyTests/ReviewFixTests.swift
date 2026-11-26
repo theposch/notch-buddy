@@ -237,7 +237,7 @@ struct AccountNameTests {
         model.noteEmail(login.email, for: login.org)   // heard before the account has any usage
         usage("home", from: "Terminal login")
         #expect(model.accounts.first?.email == "me@home.com")
-        #expect(AccountRow.where(model.accounts[0]) == "Terminal login \u{00B7} me@home.com")
+        #expect(AccountCard.where(model.accounts[0]) == "Terminal login \u{00B7} me@home.com")
         #expect(model.accounts[0].summary.hasPrefix("me@home.com"))
 
         // A desktop app session says who it's logged in as.
@@ -252,9 +252,9 @@ struct AccountNameTests {
 
     @Test func renamingAnAccount() {
         let account = Account(id: "work", from: "Desktop app")
-        #expect(AccountRow.custom("  Metalab ", for: account) == "Metalab")
-        #expect(AccountRow.custom("", for: account) == nil)          // emptied: back to "Desktop"
-        #expect(AccountRow.custom("Desktop", for: account) == nil)   // the short name isn't a name of your own
+        #expect(AccountCard.custom("  Metalab ", for: account) == "Metalab")
+        #expect(AccountCard.custom("", for: account) == nil)          // emptied: back to "Desktop"
+        #expect(AccountCard.custom("Desktop", for: account) == nil)   // the short name isn't a name of your own
     }
 
     @Test func lastWeeksFigureDoesntKeepAnAccountAround() {

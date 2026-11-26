@@ -16,6 +16,8 @@ enum ConversationSize {
               let log = e["transcript_path"] as? String else { return event }
         let lines = tail(ofLog: log)
         if let name = title(in: lines) { e[titleKey] = name }
+        // A turn just ended: how Claude's answer began, for the finished row.
+        if e["hook_event_name"] as? String == "Stop", let said = lastWords(in: lines) { e[lastKey] = said }
         if let latest = latest(in: lines) {
             let claude = (try? Data(contentsOf: settings)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
             e[key] = percent(tokens: latest.tokens, limit: limit(claude ?? [:], model: latest.model, tokens: latest.tokens))
@@ -48,6 +50,35 @@ enum ConversationSize {
             if tokens > 0 { return (tokens, message["model"] as? String) }
         }
         return nil
+    }
+
+    /// Where the helper puts the start of Claude's last answer in an event.
+    static let lastKey = "notch_buddy_last"
+
+    /// How Claude's latest answer began, in plain words, for a finished row: "Published the page and pushed to main."
+    static func lastWords(in lines: [Data]) -> String? {
+        for line in lines {
+            guard let e = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+                  e["type"] as? String == "assistant", e["isSidechain"] as? Bool != true,
+                  let message = e["message"] as? [String: Any] else { continue }
+            let blocks = message["content"] as? [[String: Any]] ?? []
+            let text = blocks.last { $0["type"] as? String == "text" }?["text"] as? String ?? message["content"] as? String
+            if let said = tidy(text) { return said }
+        }
+        return nil
+    }
+
+    /// One short plain line from an answer: its first words that say something, without Markdown marks.
+    static func tidy(_ text: String?, limit: Int = 160) -> String? {
+        guard let text else { return nil }
+        let line = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t#>*-_`|")) }
+            .first { $0.contains(where: \.isLetter) }
+        guard var said = line else { return nil }
+        for mark in ["**", "__", "`"] { said = said.replacingOccurrences(of: mark, with: "") }
+        said = said.trimmingCharacters(in: .whitespaces)
+        if said.count > limit { said = String(said.prefix(limit - 1)).trimmingCharacters(in: .whitespaces) + "\u{2026}" }
+        return said.isEmpty ? nil : said
     }
 
     /// Where the helper puts the conversation's name in an event.

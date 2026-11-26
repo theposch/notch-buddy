@@ -241,6 +241,8 @@ final class NotchController {
 
     // MARK: Buttons and menu
 
+    func showSettings() { settings.show(model: model) }
+
     private var actions: NotchActions {
         NotchActions(
             settings: { [weak self] in

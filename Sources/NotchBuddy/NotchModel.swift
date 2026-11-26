@@ -41,6 +41,8 @@ struct Session: Identifiable {
     var notice: Notice?
     /// Why its last turn failed, when Claude ran into an error: "Hit the rate limit".
     var problem: String?
+    /// How Claude's last answer began, shown on a finished row so you know whether to go and read it.
+    var lastWords: String?
     /// Waiting on you to review a plan, not to allow a single step.
     var plan = false
     /// How full its conversation is, 0–100.
@@ -67,30 +69,66 @@ struct Session: Identifiable {
         }
     }
 
-    /// Lines shown under a "needs you" row while the mouse is over it: the whole command,
-    /// and what "Always allow" would allow. Long lines wrap, up to 6 of them.
-    var hoverLines: Int {
-        guard state == .waiting, let detail else { return 0 }
+    /// How many lines of a request's command its card shows: the whole thing, up to 3 lines.
+    /// `perLine` is how many characters fit across the card.
+    func commandLines(perLine: Int = 64) -> Int {
+        guard state == .waiting, let detail, !detail.isEmpty else { return 0 }
         let wrapped = detail.split(separator: "\n", omittingEmptySubsequences: false)
-            .reduce(0) { $0 + max(1, ($1.count + 63) / 64) }
-        return min(wrapped, 6) + (always != nil && canAnswer ? 1 : 0)
+            .reduce(0) { $0 + max(1, ($1.count + perLine - 1) / max(1, perLine)) }
+        return min(wrapped, 3)
     }
 
-    static let hoverLineHeight: CGFloat = 15
-
-    /// The details line that slides in while the mouse is over the row.
-    /// `shortcut`: this row is the one ⌥⌘Y and ⌥⌘N answer.
-    func details(shortcut: Bool) -> [Detail] {
+    /// The details line that slides in while the mouse is over the row: every piece you set to
+    /// "On hover", and the words behind the ones that sit on the row as an icon (Settings > Sessions).
+    /// `shortcut`: this row is the one ⌥⌘Y and ⌥⌘N answer. `account`: its account's name and colour.
+    func details(shortcut: Bool, account: (name: String, color: String)? = nil, now: Date = Date(),
+                 place: (RowPiece) -> RowPlace = { RowPrefs.place($0) }) -> [Detail] {
+        func wants(_ piece: RowPiece) -> Bool {
+            let where_ = place(piece)
+            return where_ == .hover || (where_ == .glance && piece.saysMoreOnHover)
+        }
         var list: [Detail] = []
         if shortcut { list.append(.keys) }
-        if let branch { list.append(.branch(branch)) }
-        if let text = work.linesText { list.append(.lines(text)) }
-        if let tests = work.tests { list.append(.tests(tests)) }
-        if let pr { list.append(.pullRequest(pr)) }
-        if let server = work.server { list.append(.server(server)) }
-        if let todos = work.todos { list.append(.todo("\(todos.done) of \(todos.total)" + (todos.current.map { " · \($0)" } ?? ""))) }
-        if let cost { list.append(.cost(cost)) }
+        if wants(.branch), let branch { list.append(.branch(branch)) }
+        if wants(.lines), let text = work.linesText { list.append(.lines(text)) }
+        if wants(.tests), let tests = work.tests { list.append(.tests(tests)) }
+        if wants(.pullRequest), let pr { list.append(.pullRequest(pr)) }
+        if wants(.server), let server = work.server { list.append(.server(server)) }
+        if wants(.todo), let todos = work.todos { list.append(.todo("\(todos.done) of \(todos.total)" + (todos.current.map { " · \($0)" } ?? ""))) }
+        if wants(.helpers), work.helpers > 0 { list.append(.helpers(work.helpers)) }
+        if wants(.model), let model { list.append(.model(model)) }
+        if wants(.account), let account { list.append(.account(name: account.name, color: account.color)) }
+        if wants(.context), let context { list.append(.context(context)) }
+        if wants(.time) { list.append(.time(timeText(now: now, long: true))) }
+        if wants(.cost), let cost { list.append(.cost(cost)) }
         return list
+    }
+
+    /// Working: how long the job has been going ("42s", "1h 05m"). Otherwise how long since it changed ("4m").
+    /// `long` says which: "running 4m", "4m ago".
+    func timeText(now: Date, long: Bool = false) -> String {
+        if state == .working, let since = workingSince {
+            return (long ? "running " : "") + Self.elapsed(since, now: now)
+        }
+        let ago = Self.ago(changed, now: now)
+        return long && ago != "now" ? ago + " ago" : ago
+    }
+
+    /// "42s", "12m", "1h 05m"
+    static func elapsed(_ date: Date, now: Date) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(date)))
+        if seconds < 60 { return "\(seconds)s" }
+        if seconds < 3600 { return "\(seconds / 60)m" }
+        return "\(seconds / 3600)h " + String(format: "%02dm", seconds / 60 % 60)
+    }
+
+    /// "now", "4m", "2h", "3d"
+    static func ago(_ date: Date, now: Date) -> String {
+        let minutes = Int(now.timeIntervalSince(date) / 60)
+        if minutes < 1 { return "now" }
+        if minutes < 60 { return "\(minutes)m" }
+        if minutes < 60 * 24 { return "\(minutes / 60)h" }
+        return "\(minutes / (60 * 24))d"
     }
 
     /// Whether it gets a row. Busy sessions always do. Idle ones don't when finished sessions
@@ -118,6 +156,7 @@ struct Session: Identifiable {
 /// One piece of a row's details line.
 enum Detail: Hashable {
     case keys, branch(String), lines(String), tests(Work.Tests), pullRequest(PullRequest), server(URL), todo(String), cost(Double)
+    case helpers(Int), model(String), account(name: String, color: String), context(Int), time(String)
 
     var text: String {
         switch self {
@@ -129,13 +168,18 @@ enum Detail: Hashable {
         case .server(let url): (url.host() ?? "localhost") + (url.port.map { ":\($0)" } ?? "")
         case .todo(let text): text
         case .cost(let dollars): String(format: "$%.2f", dollars)
+        case .helpers(let count): "\(count) helper\(count == 1 ? "" : "s") at work"
+        case .model(let name): name
+        case .account(let name, _): name
+        case .context(let used): "\(used)% full"
+        case .time(let text): text
         }
     }
 
-    /// Most pieces start with a small symbol.
+    /// Most pieces start with a small symbol (an account starts with its colour dot).
     var hasSymbol: Bool {
         switch self {
-        case .keys, .lines, .cost: false
+        case .keys, .lines, .cost, .helpers, .model, .context, .time: false
         default: true
         }
     }
@@ -442,24 +486,91 @@ final class NotchModel {
     var wingWidth: CGFloat {
         guard let text = rightText else { return NotchGeometry.wing }
         let width = (text as NSString).size(withAttributes: [.font: Self.wingFont]).width
-        return max(NotchGeometry.wing, ceil(width) + 20 + (showsSpinner ? 18 : 0))
+        return max(NotchGeometry.wing, ceil(width) + 20 + (showsSpinner ? 18 : 0) + (needsLine != nil ? 18 : 0))
     }
 
     var closedSize: CGSize {
         CGSize(width: geometry.cameraWidth + wingWidth * 2, height: geometry.barHeight)
     }
 
-    static let rowHeight: CGFloat = 48
+    static let rowHeight: CGFloat = 56
     static let maxRows = 8
+    /// The details line under a row: this tall per line, plus a little air below.
+    static let detailLineHeight: CGFloat = 16
+    static let detailBottom: CGFloat = 8
+    /// Rows sit this far in from the notch's sides, and the list has a little air above and below.
+    static let listSide: CGFloat = 8
+    static let listTop: CGFloat = 2
+    static let listBottom: CGFloat = 8
+    /// Where a row's words start, past Clawd.
+    static let textInset: CGFloat = 72
+
+    /// The card a session becomes while it needs you: Clawd and its name, the whole command, the answers.
+    @MainActor enum Card {
+        static let pad: CGFloat = 10
+        static let header: CGFloat = 44
+        static let commandLine: CGFloat = 16
+        static let commandPad: CGFloat = 8
+        static let button: CGFloat = 30
+        static let gap: CGFloat = 8
+        /// Space around the card inside the list.
+        static let margin: CGFloat = 2
+        static let below: CGFloat = 6
+        static let commandFont = NSFont.monospacedSystemFont(ofSize: 11.5, weight: .regular)
+
+        /// How many characters of the command fit across a card in a notch this wide.
+        static func charactersPerLine(width: CGFloat) -> Int {
+            let inner = width - 2 * (NotchModel.listSide + margin + pad + 10) - 14   // the "$ " in front
+            let advance = ("0" as NSString).size(withAttributes: [.font: commandFont]).width
+            return max(20, Int(inner / max(1, advance)))
+        }
+
+        static func commandHeight(lines: Int) -> CGFloat {
+            lines == 0 ? 0 : CGFloat(lines) * commandLine + 2 * commandPad
+        }
+
+        /// The card without a details line.
+        static func height(commandLines: Int) -> CGFloat {
+            pad + header + (commandLines == 0 ? 0 : gap + commandHeight(lines: commandLines)) + gap + button + pad
+        }
+    }
+
+    /// Whether a row's details line is showing: the mouse is over it, or you chose "Always show details".
+    func showsDetails(_ session: Session) -> Bool {
+        _ = prefs
+        return hovered == session.id || RowPrefs.always()
+    }
+
+    /// A row's details, with its account and whether the shortcuts answer it.
+    func details(for session: Session, now: Date = Date()) -> [Detail] {
+        _ = prefs
+        let account = severalAccounts ? account(of: session).map { (name: $0.name, color: $0.color(among: accounts)) } : nil
+        return session.details(shortcut: session.id == shortcutTarget?.id, account: account, now: now)
+    }
+
+    /// How tall a row's details line is right now (0 while it's tucked away).
+    func detailHeight(of session: Session, width: CGFloat) -> CGFloat {
+        guard showsDetails(session) else { return 0 }
+        let inset = session.state == .waiting ? 2 * (Self.listSide + Card.margin + Card.pad) + 4
+                                              : 2 * Self.listSide + Self.textInset + 12
+        let lines = Self.detailLines(details(for: session), width: width - inset)
+        return lines == 0 ? 0 : CGFloat(lines) * Self.detailLineHeight + Self.detailBottom
+    }
+
+    /// How tall one session is in the open notch: a row, or a card while it needs you.
+    func height(of session: Session, width: CGFloat) -> CGFloat {
+        let details = detailHeight(of: session, width: width)
+        guard session.state == .waiting else { return Self.rowHeight + details }
+        let lines = session.commandLines(perLine: Card.charactersPerLine(width: width))
+        return Card.margin + Card.height(commandLines: lines) + details + Card.below
+    }
 
     var openSize: CGSize {
-        let rows = min(sessions.count, Self.maxRows)
         let width = openWidth
-        let row = self.rows.prefix(Self.maxRows).first { $0.id == hovered }
-        let lines = (row?.hoverLines ?? 0) + (row.map { Self.detailLines($0.details(shortcut: $0.id == shortcutTarget?.id), width: width - 82) } ?? 0)
-        let hover = lines > 0 ? CGFloat(lines) * Session.hoverLineHeight + 8 : 0
+        let shown = rows.prefix(Self.maxRows)
         let empty: CGFloat = today.line == nil || usageOut ? 124 : 140
-        let body = welcome ? 128 : (rows == 0 ? empty : CGFloat(rows) * Self.rowHeight + 14 + hover)
+        let list = shown.reduce(Self.listTop + Self.listBottom) { $0 + height(of: $1, width: width) }
+        let body = welcome ? 128 : (shown.isEmpty ? empty : list)
         return CGSize(width: width, height: geometry.barHeight + body)
     }
 
@@ -534,21 +645,14 @@ final class NotchModel {
         return figures + (figures > 0 ? 6 : 0) + words + Self.smallButtonWidth(hint.button)
     }
 
-    /// The figures alone, without a hint that usage needs your OK.
+    /// The figures alone, without a hint that usage needs your OK: a ring and a number per account.
+    /// (`short` no longer changes them; whose they are and when they reset is on hover.)
     private func figuresWidth(short: Bool) -> CGFloat {
-        var pieces: [CGFloat] = []
-        if severalAccounts {
-            for account in shownAccounts {
-                guard let left = account.left else { continue }
-                pieces.append(6 + 5 + (short ? 0 : Self.topWidth(account.name) + 5) + Self.topWidth("\(left)%") + 6)
-            }
-        } else {
-            if let left = usageLeft { pieces.append(Self.topWidth("\(left)% left")) }
-            if !short, let resets = usage?.resets { pieces.append(Self.topWidth("resets \(resets.formatted(date: .omitted, time: .shortened))")) }
-            if let week = weekLeft { pieces += [Self.topWidth("· week"), Self.topWidth("\(week)% left")] }
-        }
-        return pieces.reduce(0, +) + CGFloat(max(0, pieces.count - 1)) * 6
+        let pieces = shownAccounts.compactMap { account in account.left.map { Self.usageRing + 6 + Self.topWidth("\($0)%") } }
+        return pieces.reduce(0, +) + CGFloat(max(0, pieces.count - 1)) * Self.usageGap
     }
+    static let usageRing: CGFloat = 14
+    static let usageGap: CGFloat = 14
 
     /// Room for the usage left of the camera on a MacBook (padding and a little air taken off).
     private var roomBesideCamera: CGFloat {
@@ -822,7 +926,10 @@ final class NotchModel {
         session.heard = Date()
         if name == "StopFailure" {
             session.problem = Notice.problem(event["error"] as? String ?? event["error_type"] as? String ?? event["reason"] as? String)
-        } else if name == "UserPromptSubmit" { session.problem = nil }
+        } else if name == "UserPromptSubmit" { session.problem = nil; session.lastWords = nil }
+        if name == "Stop" {
+            session.lastWords = ConversationSize.tidy(event["last_assistant_message"] as? String) ?? (event[ConversationSize.lastKey] as? String) ?? session.lastWords
+        }
         if !session.contextFromStatusLine, let used = event[ConversationSize.key] as? Int { session.context = used }
         if let reply { replies[id] = reply }
         session.canAnswer = replies[id] != nil

@@ -8,12 +8,21 @@ struct NotchView: View {
     let actions: NotchActions
 
     static let clay = Color(red: 0xD9 / 255, green: 0x77 / 255, blue: 0x57 / 255)
-    static let amber = Color(red: 0xE8 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
-    static let green = Color(red: 0x8F / 255, green: 0xBF / 255, blue: 0x6A / 255)
-    static let orange = Color(red: 0xF0 / 255, green: 0x9A / 255, blue: 0x3E / 255)
-    static let red = Color(red: 0xE5 / 255, green: 0x48 / 255, blue: 0x4D / 255)
-    static let purple = Color(red: 0.71, green: 0.54, blue: 0.88)
+    // Status colours are the Mac's own, as they look in dark appearance (the notch is always dark).
+    static let amber = Color(red: 1, green: 0xD6 / 255, blue: 0x0A / 255)
+    static let green = Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255)
+    static let orange = Color(red: 1, green: 0x9F / 255, blue: 0x0A / 255)
+    static let red = Color(red: 1, green: 0x45 / 255, blue: 0x3A / 255)
+    static let purple = Color(red: 0xBF / 255, green: 0x5A / 255, blue: 0xF2 / 255)
     static let dim = Color(red: 0x9A / 255, green: 0x9A / 255, blue: 0x95 / 255)
+    /// Text on the black notch, as the Mac ranks it: what matters, what supports it, what's nearly a whisper.
+    static let secondary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255).opacity(0.62)
+    static let tertiary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255).opacity(0.34)
+    static let hairline = Color(red: 84 / 255, green: 84 / 255, blue: 88 / 255).opacity(0.62)
+    /// What sits on the black: a pressed-in fill for buttons, a faint one under the mouse, a card.
+    static let fill = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255).opacity(0.36)
+    static let faintFill = Color(red: 118 / 255, green: 118 / 255, blue: 128 / 255).opacity(0.15)
+    static let card = Color(red: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255)
 
     /// Orange under 20% left, red under 10%.
     static func usageColor(_ left: Int, normal: Color) -> Color {
@@ -75,6 +84,9 @@ struct NotchView: View {
                         .lineLimit(1)
                         .fixedSize()
                         .contentTransition(.numericText())
+                        .padding(.horizontal, model.needsLine != nil ? 9 : 0)
+                        .frame(height: 20)
+                        .background { if model.needsLine != nil { Capsule().fill(Self.amber) } }
                         // Fade between words; numbers (usage left) roll instead.
                         .id(model.rightIsUsage ? "usage" : model.rightText)
                         .transition(.opacity)
@@ -95,7 +107,7 @@ struct NotchView: View {
     }
 
     private var rightColor: Color {
-        if model.needsLine != nil { return Self.amber }
+        if model.needsLine != nil { return Color(red: 0x23 / 255, green: 0x1C / 255, blue: 0) }   // dark on the yellow pill
         if model.outLine != nil { return Self.dim }
         if let shown = model.shown { return shown.color }
         if model.rightIsUsage, let left = model.usageLeft { return Self.usageColor(left, normal: Self.clay) }
@@ -104,42 +116,26 @@ struct NotchView: View {
 
     // MARK: Open
 
-    private var panel: some View {
-        rows
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-    }
+    private var panel: some View { rows }
 
     /// The menu bar strip, either side of the camera: usage left, then settings and Quit.
     private var topBar: some View {
         HStack(spacing: 6) {
-            if model.severalAccounts {
-                // Every account: dot, name, 5 hours left. Hover for the week.
+            // Usage left, per account: a ring in the account's colour and the number.
+            // Whose it is, when it resets and the week are on hover.
+            HStack(spacing: NotchModel.usageGap) {
                 ForEach(model.shownAccounts) { account in
                     if let left = account.left {
-                        HStack(spacing: 5) {
-                            AccountDot(color: account.color(among: model.accounts))
-                            if !model.shortUsageStrip { Text(account.name).foregroundStyle(Self.dim).fixedSize() }
-                            Text("\(left)%").foregroundStyle(Self.usageColor(left, normal: .white))
+                        HStack(spacing: 6) {
+                            Ring(fraction: Double(left) / 100, color: Color(hex: account.color(among: model.accounts)), size: NotchModel.usageRing, line: 2)
+                            Text("\(left)%")
+                                .contentTransition(.numericText())
+                                .animation(.snappy, value: left)
+                                .foregroundStyle(Self.usageColor(left, normal: .white))
                         }
-                        .padding(.trailing, 6)
-                        .help(account.summary)
+                        .help(model.severalAccounts ? "\(account.name): \(account.summary)" : account.summary)
                     }
                 }
-            } else if let left = model.usageLeft, let resets = model.usage?.resets {
-                let time = resets.formatted(date: .omitted, time: .shortened)
-                Text("\(left)% left")
-                    .contentTransition(.numericText())
-                    .animation(.snappy, value: left)
-                    .foregroundStyle(Self.usageColor(left, normal: .white))
-                    .help("Resets \(time)")
-                if !model.shortUsageStrip { Text("resets \(time)").foregroundStyle(Self.dim) }
-            }
-            if !model.severalAccounts, let week = model.weekLeft {
-                Text("· week").foregroundStyle(Self.dim)
-                Text("\(week)% left")
-                    .contentTransition(.numericText())
-                    .foregroundStyle(Self.usageColor(week, normal: .white))
             }
             // A login is switched on but macOS wants your OK first: say so, with the button that asks.
             if let hint = model.usageHint(short: model.shortUsageStrip) {
@@ -165,14 +161,29 @@ struct NotchView: View {
         } else {
             // Redraw every second so the working time keeps counting.
             TimelineView(.periodic(from: .now, by: 1)) { time in
+                let width = model.openWidth
+                let shown = Array(model.rows.prefix(NotchModel.maxRows))
                 VStack(spacing: 0) {
-                    ForEach(Array(model.rows.prefix(NotchModel.maxRows).enumerated()), id: \.element.id) { index, session in
-                        SessionRow(session: session, color: model.color(of: session), now: time.date,
-                                   account: model.severalAccounts ? model.account(of: session).map { ($0.name, $0.color(among: model.accounts), $0.email) } : nil,
-                                   expanded: model.hovered == session.id,
-                                   details: session.details(shortcut: session.id == model.shortcutTarget?.id),
-                                   answer: { choice in withAnimation { model.answer(session, choice) } },
-                                   review: { withAnimation { model.open(session) } })
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, session in
+                        let hovered = model.hovered == session.id
+                        let account = model.severalAccounts ? model.account(of: session).map { (name: $0.name, color: $0.color(among: model.accounts), email: $0.email) } : nil
+                        let details = model.showsDetails(session) ? model.details(for: session, now: time.date) : []
+                        let detailHeight = model.detailHeight(of: session, width: width)
+                        Group {
+                            if session.state == .waiting {
+                                RequestCard(session: session, color: model.color(of: session), now: time.date, account: account,
+                                            commandLines: session.commandLines(perLine: NotchModel.Card.charactersPerLine(width: width)),
+                                            details: details, detailHeight: detailHeight,
+                                            answer: { choice in withAnimation { model.answer(session, choice) } },
+                                            open: { withAnimation { model.open(session) } })
+                            } else {
+                                // A hairline between rows, but not beside the one under the mouse or under a card.
+                                let above = index > 0 ? shown[index - 1] : nil
+                                SessionRow(session: session, color: model.color(of: session), now: time.date, account: account,
+                                           hovered: hovered, details: details, detailHeight: detailHeight,
+                                           divider: above != nil && above?.state != .waiting && !hovered && model.hovered != above?.id)
+                            }
+                        }
                         .modifier(Stagger(index: index))
                         .onTapGesture { withAnimation { model.open(session) } }
                         .contextMenu { RowMenu(session: session, clear: { withAnimation { model.clear(session) } }) }
@@ -184,6 +195,8 @@ struct NotchView: View {
                         }
                     }
                 }
+                .padding(.horizontal, NotchModel.listSide)
+                .padding(.top, NotchModel.listTop)
             }
         }
     }
@@ -332,160 +345,307 @@ struct Spinner: View {
     }
 }
 
-/// Clawd, project name, status and how long ago it changed.
-/// When Claude is asking for permission: what it wants to do, with Allow and Deny.
+/// One session: Clawd, its name and one line saying what it's doing. Whatever you chose to see
+/// "at a glance" sits at the end; the rest waits in the details line (Settings > Sessions).
 struct SessionRow: View {
     let session: Session
     let color: String
     let now: Date
     /// Its account's name and colour, when you have several.
     var account: (name: String, color: String, email: String?)? = nil
-    /// The mouse is over it: show the whole command and the details line.
-    let expanded: Bool
-    /// Branch, lines changed, tests, pull request, server, cost: shown on hover.
+    /// The mouse is over it.
+    var hovered = false
+    /// The details line, when it's showing, and how tall it is.
     var details: [Detail] = []
-    let answer: (NotchModel.Answer) -> Void
-    /// "Review plan": go to the conversation.
-    var review: () -> Void = {}
+    var detailHeight: CGFloat = 0
+    /// A hairline above it.
+    var divider = false
     /// What this row's Clawd says he's doing ("Sautéing…"), matching his animation.
     @State private var word = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                ClawdView(mode: session.clawdMode, color: color, onWord: { said in
-                    withAnimation(.easeInOut(duration: 0.25)) { word = said }
-                }, step: session.activity, reaction: Prefs.celebrations ? session.notice : nil)
-                .frame(width: 40, height: 26)
-                .overlay(alignment: .bottomTrailing) {
-                    if session.work.helpers > 0 { HelperBadge(count: session.work.helpers) }
+            HStack(spacing: 8) {
+                RowClawd(session: session, color: color, word: $word)
+                VStack(alignment: .leading, spacing: 1) {
+                    RowTitle(session: session, account: account)
+                    statusLine
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(session.name)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                        if let model = session.model { ModelBadge(name: model) }
-                        if let account { AccountChip(name: account.name, color: account.color).help(account.email ?? account.name) }
-                    }
-                    HStack(spacing: 6) {
-                        Text(session.notice?.word ?? session.summary ?? label)
-                            .foregroundStyle(session.notice?.color ?? tint)
-                            .contentTransition(.opacity)
-                            .fixedSize()
-                        // What just happened ("91 passed"), or what Claude is doing right now.
-                        if let note = session.notice?.detail ?? (session.state == .working ? session.activity : nil) {
-                            Text(note)
-                                .foregroundStyle(.white.opacity(0.6))
-                                .layoutPriority(-1)   // the part that gets cut short when space runs out
-                                .transition(.opacity)
-                                .id(note)
-                        }
-                        Text(timeText)
-                            .foregroundStyle(NotchView.dim)
-                            .fixedSize()
-                            .contentTransition(.numericText())
-                            .animation(.snappy, value: timeText)
-                        Outcome(tests: session.work.tests, pr: session.pr)
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                }
-                .lineLimit(1)
-                .truncationMode(.tail)
-
                 Spacer(minLength: 8)
-
-                if session.state == .waiting, session.plan {
-                    Button("Review plan", action: review)
-                        .buttonStyle(Pill(fill: NotchView.clay, text: .black))
-                } else if session.canAnswer {
-                    Button("Deny") { answer(.deny) }
-                        .buttonStyle(Pill(fill: Color(white: 0.2), text: .white))
-                    if session.always != nil {
-                        Button("Always") { answer(.always) }
-                            .buttonStyle(Pill(fill: Color(white: 0.2), text: .white))
-                    }
-                    Button("Allow") { answer(.allow) }
-                        .buttonStyle(Pill(fill: NotchView.clay, text: .black))
-                } else if let context = session.context {
-                    ContextMeter(used: context)
-                }
+                Glance(session: session, now: now)
             }
+            .padding(.leading, 4)
+            .padding(.trailing, 12)
             .frame(height: NotchModel.rowHeight)
             .overlay(alignment: .bottom) {
-                if let todos = session.work.todos { TodoLine(todos: todos).padding(.leading, 50) }
+                if RowPrefs.place(.todo) == .glance, session.state == .working, let todos = session.work.todos {
+                    TodoLine(todos: todos).padding(.leading, NotchModel.textInset).padding(.trailing, 12).padding(.bottom, 3)
+                }
             }
 
-            if expanded, session.hoverLines > 0 || !details.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    if session.hoverLines > 0, let detail = session.detail {
-                        Text(detail)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .lineLimit(6)
-                        if session.canAnswer, let always = session.always {
-                            Text("Always allows \(always)")
-                                .font(.system(size: 11))
-                                .foregroundStyle(NotchView.dim)
-                                .lineLimit(1)
-                        }
-                    }
-                    if !details.isEmpty { DetailsLine(details: details) }
-                }
-                .lineSpacing(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 50)
-                .padding(.bottom, 8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+            if detailHeight > 0 {
+                DetailsLine(details: details)
+                    .padding(.leading, NotchModel.textInset)
+                    .padding(.trailing, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(height: detailHeight, alignment: .top)
+                    .offset(y: -4)
+                    .transition(.opacity)
             }
         }
-        .contentShape(Rectangle())
+        .opacity(session.state == .done && !hovered ? 0.78 : 1)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(NotchView.faintFill.opacity(hovered ? 1 : 0)))
         .overlay(alignment: .top) {
-            Rectangle().fill(Color(white: 0.12)).frame(height: 1)
+            Rectangle().fill(NotchView.hairline).frame(height: 0.5)
+                .padding(.leading, NotchModel.textInset).padding(.trailing, 12)
+                .opacity(divider ? 1 : 0)
         }
+        .contentShape(Rectangle())
         .help((session.title == nil ? "" : "In \(session.folder). ") + (session.state == .done ? "Click to open and clear" : "Click to open"))
     }
 
-    private var label: String {
-        switch session.state {
-        case .ready: "Ready"
-        case .working: word.hasSuffix("…") ? word : "Working"
-        case .waiting: "Needs you"
-        case .done: "Done"
+    /// The one line under the name: what just happened, what Claude is doing, or how it ended.
+    @ViewBuilder private var statusLine: some View {
+        if let notice = session.notice {
+            HStack(spacing: 6) {
+                Text(notice.word).foregroundStyle(notice.color).fontWeight(.medium).fixedSize()
+                if let detail = notice.detail { Text(detail).foregroundStyle(NotchView.secondary) }
+            }
+            .transition(.opacity)
+        } else {
+            switch session.state {
+            case .working:
+                // What Claude is doing right now; before its first step, Clawd's own word for it.
+                if let activity = session.activity { Text(activity).foregroundStyle(NotchView.secondary).id(activity).transition(.opacity) }
+                else { Text(word.hasSuffix("…") ? word : "Working").foregroundStyle(NotchView.clay) }
+            case .done:
+                if let problem = session.problem { Text(problem).foregroundStyle(NotchView.red) }
+                else if let said = session.lastWords { Text("\u{201C}\(said)\u{201D}").foregroundStyle(NotchView.secondary) }
+                else { Text("Done").foregroundStyle(NotchView.green) }
+            case .ready:
+                Text("Ready").foregroundStyle(NotchView.secondary)
+            case .waiting:
+                Text(session.summary ?? "Needs you").foregroundStyle(NotchView.amber)
+            }
         }
-    }
-
-    private var tint: Color {
-        switch session.state {
-        case .ready: NotchView.dim
-        case .working: NotchView.clay
-        case .waiting: NotchView.amber
-        case .done: NotchView.green
-        }
-    }
-
-    /// "now", "4m", "2h", "3d"
-    /// Working: how long the job has been going. Otherwise: how long since it changed.
-    private var timeText: String {
-        if session.state == .working, let since = session.workingSince { return Self.elapsed(since, now: now) }
-        return Self.ago(session.changed, now: now)
     }
 
     /// "42s", "12m", "1h 05m"
-    static func elapsed(_ date: Date, now: Date) -> String {
-        let seconds = max(0, Int(now.timeIntervalSince(date)))
-        if seconds < 60 { return "\(seconds)s" }
-        if seconds < 3600 { return "\(seconds / 60)m" }
-        return "\(seconds / 3600)h " + String(format: "%02dm", seconds / 60 % 60)
+    static func elapsed(_ date: Date, now: Date) -> String { Session.elapsed(date, now: now) }
+    /// "now", "4m", "2h", "3d"
+    static func ago(_ date: Date, now: Date) -> String { Session.ago(date, now: now) }
+}
+
+/// A session that needs you, as a card: what it wants, the whole command, and the answers.
+struct RequestCard: View {
+    let session: Session
+    let color: String
+    let now: Date
+    var account: (name: String, color: String, email: String?)? = nil
+    /// How many lines of the command to show (0: there's nothing to show).
+    let commandLines: Int
+    var details: [Detail] = []
+    var detailHeight: CGFloat = 0
+    let answer: (NotchModel.Answer) -> Void
+    /// "Review plan", "Open conversation": go to it.
+    let open: () -> Void
+    @State private var word = ""
+
+    private typealias Card = NotchModel.Card
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                RowClawd(session: session, color: color, word: $word)
+                VStack(alignment: .leading, spacing: 1) {
+                    RowTitle(session: session, account: account)
+                    Text(wants).font(.system(size: 12)).foregroundStyle(NotchView.amber).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Glance(session: session, now: now)
+            }
+            .frame(height: Card.header)
+
+            if commandLines > 0, let command = session.detail {
+                (Text(session.summary?.hasPrefix("Run") == true ? "$ " : "").foregroundColor(NotchView.tertiary) + Text(command))
+                    .font(Font(Card.commandFont))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .lineLimit(commandLines)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(height: Card.commandHeight(lines: commandLines) - 2 * Card.commandPad, alignment: .topLeading)
+                    .padding(.vertical, Card.commandPad)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.black))
+                    .padding(.top, Card.gap)
+                    .help(session.canAnswer && session.always != nil ? "Always allow would allow \(session.always ?? "")" : command)
+            }
+
+            HStack(spacing: 6) {
+                if session.plan {
+                    Button("Review plan", action: open).buttonStyle(CardButton(prominent: true))
+                } else if session.canAnswer {
+                    Button("Deny") { answer(.deny) }.buttonStyle(CardButton())
+                    if let always = session.always {
+                        Button("Always allow") { answer(.always) }.buttonStyle(CardButton()).help("Always allows \(always)")
+                    }
+                    Button("Allow") { answer(.allow) }.buttonStyle(CardButton(prominent: true))
+                } else {
+                    // A question, or a request the notch can't answer from here: go to the conversation.
+                    Button("Open conversation", action: open).buttonStyle(CardButton())
+                }
+            }
+            .frame(height: Card.button)
+            .padding(.top, Card.gap)
+
+            if detailHeight > 0 {
+                DetailsLine(details: details)
+                    .padding(.horizontal, 2)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(height: detailHeight, alignment: .bottom)
+                    .transition(.opacity)
+            }
+        }
+        .padding(Card.pad)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(NotchView.card))
+        .padding(.horizontal, Card.margin)
+        .padding(.top, Card.margin)
+        .padding(.bottom, Card.below)
+        .contentShape(Rectangle())
+        .help("Click to open")
     }
 
-    static func ago(_ date: Date, now: Date) -> String {
-        let minutes = Int(now.timeIntervalSince(date) / 60)
-        if minutes < 1 { return "now" }
-        if minutes < 60 { return "\(minutes)m" }
-        if minutes < 60 * 24 { return "\(minutes / 60)h" }
-        return "\(minutes / (60 * 24))d"
+    /// "Wants to run a command", "Has a question", "Plan ready to review".
+    private var wants: String {
+        guard let summary = session.summary else { return "Needs you" }
+        if session.plan || summary == "Has a question" { return summary }
+        if summary.hasPrefix("Run") { return "Wants to run a command" }
+        return "Wants to: " + summary.prefix(1).lowercased() + summary.dropFirst()
+    }
+}
+
+/// Clawd on a row, with "+2" on him while Claude's helpers are at work (when you show that at a glance).
+struct RowClawd: View {
+    let session: Session
+    let color: String
+    @Binding var word: String
+
+    var body: some View {
+        ClawdView(mode: session.clawdMode, color: color, onWord: { said in
+            withAnimation(.easeInOut(duration: 0.25)) { word = said }
+        }, step: session.activity, reaction: Prefs.celebrations ? session.notice : nil)
+        .frame(width: 60, height: 39)
+        .overlay(alignment: .bottomTrailing) {
+            if RowPrefs.place(.helpers) == .glance, session.work.helpers > 0 { HelperBadge(count: session.work.helpers).offset(x: -8, y: -4) }
+        }
+    }
+}
+
+/// A row's name, and its model and account as small tags when you show those at a glance.
+struct RowTitle: View {
+    let session: Session
+    var account: (name: String, color: String, email: String?)? = nil
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(session.name)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+            if RowPrefs.place(.model) == .glance, let model = session.model { ModelBadge(name: model) }
+            if RowPrefs.place(.account) == .glance, let account {
+                AccountChip(name: account.name, color: account.color).help(account.email ?? account.name)
+            }
+        }
+    }
+}
+
+/// The end of a row: the small things you chose to always see. Cost, how the tests went, the pull
+/// request, the time, and a ring for how full the conversation is (a green tick once it's done).
+struct Glance: View {
+    let session: Session
+    let now: Date
+
+    var body: some View {
+        HStack(spacing: 9) {
+            if RowPrefs.place(.cost) == .glance, let cost = session.cost {
+                Text(Detail.cost(cost).text).foregroundStyle(NotchView.tertiary)
+            }
+            if RowPrefs.place(.tests) == .glance, let tests = session.work.tests {
+                Image(systemName: Symbols.tests)
+                    .foregroundStyle(tests.ok ? NotchView.green : NotchView.red)
+                    .help(tests.text)
+            }
+            if RowPrefs.place(.pullRequest) == .glance, let pr = session.pr {
+                Image(systemName: Symbols.pullRequest)
+                    .foregroundStyle(Outcome.color(pr))
+                    .help(pr.text)
+            }
+            if RowPrefs.place(.time) == .glance {
+                Text(session.timeText(now: now))
+                    .foregroundStyle(NotchView.tertiary)
+                    .contentTransition(.numericText())
+            }
+            if session.state == .done, session.problem == nil {
+                Image(systemName: Symbols.done).font(.system(size: 16)).foregroundStyle(NotchView.green)
+            } else if session.state != .waiting, RowPrefs.place(.context) == .glance, let used = session.context {
+                Ring(fraction: Double(used) / 100, color: used >= 90 ? NotchView.red : used >= 80 ? NotchView.orange : .white, size: 18, line: 2.25)
+                    .help("\(used)% of context used")
+            }
+        }
+        .font(.system(size: 11, weight: .medium).monospacedDigit())
+        .fixedSize()
+    }
+}
+
+/// The symbols rows use, in one place (a test checks that this Mac has them all).
+enum Symbols {
+    static let tests = "flask"
+    static let pullRequest = "arrow.triangle.pull"
+    static let branch = "arrow.triangle.branch"
+    static let server = "arrow.up.right.square"
+    static let todo = "checklist"
+    static let done = "checkmark.circle.fill"
+    static let all = [tests, pullRequest, branch, server, todo, done]
+}
+
+/// A thin ring that fills clockwise from the top: usage left, or how full a conversation is.
+struct Ring: View {
+    let fraction: Double
+    let color: Color
+    var size: CGFloat = 18
+    var line: CGFloat = 2.25
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(NotchView.fill.opacity(0.7), lineWidth: line)
+            Circle().trim(from: 0, to: max(0.001, min(1, fraction)))
+                .stroke(color, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .padding(line / 2)
+        .frame(width: size, height: size)
+        .animation(.easeOut(duration: 0.4), value: fraction)
+    }
+}
+
+/// A wide button on a request's card.
+struct CardButton: ButtonStyle {
+    var prominent = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12.5, weight: .semibold))
+            .foregroundStyle(prominent ? Color(red: 0x1D / 255, green: 0x0E / 255, blue: 0x07 / 255) : .white)
+            .frame(maxWidth: .infinity)
+            .frame(height: NotchModel.Card.button)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(prominent ? NotchView.clay : NotchView.fill)
+                .brightness(configuration.isPressed ? -0.08 : 0))
+            .contentShape(Rectangle())
     }
 }
 
@@ -603,23 +763,25 @@ struct DetailsLine: View {
         case .keys:
             Text(detail.text).foregroundStyle(.white.opacity(0.75))
         case .branch(let name):
-            Item(name, symbol: "arrow.triangle.branch")
+            Item(name, symbol: Symbols.branch)
         case .lines(let text):
             Self.colored(text)
         case .tests(let tests):
-            Item(tests.text, symbol: tests.ok ? "checkmark" : "xmark")
+            Item(tests.text, symbol: Symbols.tests)
                 .foregroundStyle(tests.ok ? NotchView.green : NotchView.red)
         case .pullRequest(let pr):
-            Button { NSWorkspace.shared.open(pr.url) } label: { Item(pr.text, symbol: "arrow.triangle.pull") }
+            Button { NSWorkspace.shared.open(pr.url) } label: { Item(pr.text, symbol: Symbols.pullRequest) }
                 .buttonStyle(.plain)
                 .foregroundStyle(Outcome.color(pr))
         case .server(let url):
-            Button { NSWorkspace.shared.open(url) } label: { Item(detail.text, symbol: "arrow.up.right.square") }
+            Button { NSWorkspace.shared.open(url) } label: { Item(detail.text, symbol: Symbols.server) }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color(red: 0.54, green: 0.71, blue: 0.97))
         case .todo(let text):
-            Item(text, symbol: "checklist")
-        case .cost:
+            Item(text, symbol: Symbols.todo)
+        case .account(let name, let color):
+            HStack(spacing: 4) { AccountDot(color: color); Text(name) }
+        case .cost, .helpers, .model, .context, .time:
             Text(detail.text)
         }
     }

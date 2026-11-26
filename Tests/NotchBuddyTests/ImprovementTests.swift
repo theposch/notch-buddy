@@ -83,15 +83,18 @@ struct TidyAndUsageTests {
         #expect(row?.always == "Bash(npm test:*)")
     }
 
-    @Test func hoverLines() {
+    @Test func aRequestsCardShowsTheWholeCommandUpToThreeLines() {
         var s = Session(id: "a", folder: "/x", state: .waiting, color: Prefs.clay)
-        #expect(s.hoverLines == 0)
-        s.detail = String(repeating: "x", count: 130)          // wraps to 3 lines
-        #expect(s.hoverLines == 3)
-        s.always = "Bash(x:*)"; s.canAnswer = true
-        #expect(s.hoverLines == 4)
+        #expect(s.commandLines() == 0)
+        s.detail = "npm test"
+        #expect(s.commandLines() == 1)
+        s.detail = String(repeating: "x", count: 130)          // wraps to 3 lines of 64
+        #expect(s.commandLines() == 3)
+        #expect(s.commandLines(perLine: 80) == 2)
         s.detail = Array(repeating: "x", count: 20).joined(separator: "\n")
-        #expect(s.hoverLines == 7)                              // 6 at most, plus the always line
+        #expect(s.commandLines() == 3)                          // 3 at most
+        s.state = .working
+        #expect(s.commandLines() == 0)                          // only while it's asking
     }
 
     @Test func eachRowKeepsItsOwnContext() {
