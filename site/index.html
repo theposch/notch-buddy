@@ -168,7 +168,7 @@ main.home { max-width: 1080px; display: flex; flex-direction: column; }
       <a class="btn quiet" href="https://github.com/theposch/notch-buddy" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
         View on GitHub</a>
     </div>
-    <p class="small">Free and open source. Version 0.3, macOS 14 or later.</p>
+    <p class="small">Free and open source. Version 0.4, macOS 14 or later.</p>
   </section>
 
   <section class="feat">
@@ -272,7 +272,7 @@ main.home { max-width: 1080px; display: flex; flex-direction: column; }
         <svg class="tool" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.86 3.44L7.04 1.57L8.96 1.57L9.14 3.44L10.42 3.97L11.87 2.77L13.23 4.13L12.03 5.58L12.56 6.86L14.43 7.04L14.43 8.96L12.56 9.14L12.03 10.42L13.23 11.87L11.87 13.23L10.42 12.03L9.14 12.56L8.96 14.43L7.04 14.43L6.86 12.56L5.58 12.03L4.13 13.23L2.77 11.87L3.97 10.42L3.44 9.14L1.57 8.96L1.57 7.04L3.44 6.86L3.97 5.58L2.77 4.13L4.13 2.77L5.58 3.97Z"/><circle cx="8" cy="8" r="2.1"/></svg>
         <svg class="tool" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5.2M4.6 4.2a5.2 5.2 0 1 0 6.8 0"/></svg>
       </div>
-      <p class="note" id="up-note" aria-live="polite">Version 0.4 is available. Go on, press it.</p>
+      <p class="note" id="up-note" aria-live="polite">Version 0.5 is available. Go on, press it.</p>
     </div>
   </section>
 
@@ -363,13 +363,13 @@ document.getElementById("up-home").innerHTML = ring(41, "#7FB3E0", 16, 2) + "41%
 const slot = document.getElementById("up-slot"), note = document.getElementById("up-note");
 function offer() {
   slot.innerHTML = `<button type="button" class="upd" id="up-btn">Update</button>`;
-  note.textContent = "Version 0.4 is available. Go on, press it.";
+  note.textContent = "Version 0.5 is available. Go on, press it.";
   slot.firstChild.addEventListener("click", () => {
     slot.firstChild.disabled = true; slot.firstChild.textContent = "Updating…";
     note.textContent = "Downloading, checking, installing…";
     setTimeout(() => {
       slot.innerHTML = `<span class="ok">${check(16)}Up to date</span>`;
-      note.textContent = "Restarted on version 0.4. That was the whole update.";
+      note.textContent = "Restarted on version 0.5. That was the whole update.";
       setTimeout(offer, 4200);
     }, RM ? 0 : 1600);
   });
