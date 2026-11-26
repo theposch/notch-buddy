@@ -8,12 +8,14 @@ struct Account: Codable, Equatable, Identifiable {
     var week: Usage?
     /// Where it's logged in right now, as far as we know: "Terminal login", "Desktop app".
     var from: String?
+    /// The email address it's logged in with, when Claude says. Only kept on this Mac.
+    var email: String?
 
     var left: Int? { usage?.left() }
 
     /// "5 hours: 72% left, resets 3:50 PM · Week: 88% left", for hovering.
     var summary: String {
-        var parts: [String] = []
+        var parts: [String] = email.map { [$0] } ?? []
         if let usage, let left { parts.append("5 hours: \(left)% left, resets \(usage.resets.formatted(date: .omitted, time: .shortened))") }
         if let week, let left = week.left() { parts.append("Week: \(left)% left") }
         return parts.joined(separator: " · ")
@@ -58,6 +60,8 @@ struct Account: Codable, Equatable, Identifiable {
 
     /// Where the hook helper puts the session's organization in an event.
     static let key = "notch_buddy_org"
+    /// And the email address that account is logged in with.
+    static let emailKey = "notch_buddy_email"
 
     /// The desktop app tells each session which organization it runs on. Terminal sessions
     /// don't; they're on the Terminal login's account.
@@ -65,14 +69,22 @@ struct Account: Codable, Equatable, Identifiable {
         guard let org = environment["CLAUDE_CODE_ORGANIZATION_UUID"], !org.isEmpty,
               var e = try? JSONSerialization.jsonObject(with: event) as? [String: Any] else { return event }
         e[key] = org
+        if let email = environment["CLAUDE_CODE_USER_EMAIL"], !email.isEmpty { e[emailKey] = email }
         return (try? JSONSerialization.data(withJSONObject: e)) ?? event
     }
 
     /// The organization Claude Code in the Terminal is logged in to, from its own settings file.
     static func terminalOrg(file: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude.json")) -> String? {
+        terminalLogin(file: file)?.org
+    }
+
+    /// That organization, and the email address of the login.
+    static func terminalLogin(file: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude.json")) -> (org: String, email: String?)? {
         guard let data = try? Data(contentsOf: file),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return (json["oauthAccount"] as? [String: Any])?["organizationUuid"] as? String
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let login = json["oauthAccount"] as? [String: Any],
+              let org = login["organizationUuid"] as? String else { return nil }
+        return (org, login["emailAddress"] as? String)
     }
 }
 

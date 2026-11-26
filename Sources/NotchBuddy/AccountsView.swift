@@ -95,11 +95,15 @@ struct LoginRow: View {
     }
 }
 
-/// One account: its colour (click for another), its name, where it's from, its usage, and a switch.
+/// One account: its colour (click for another), its name with a pencil to change it,
+/// where it's logged in, its usage, and a switch.
 struct AccountRow: View {
     let model: NotchModel
     let account: Account
     @State private var name = ""
+    /// The pencil was clicked: the name is a box to type in until Return, Esc or a click elsewhere.
+    @State private var editing = false
+    @FocusState private var typing: Bool
 
     var body: some View {
         // Colour and Show are saved settings, which SwiftUI doesn't watch; the model does.
@@ -114,16 +118,45 @@ struct AccountRow: View {
             .buttonStyle(.plain)
             .help("Click for another colour")
 
-            VStack(alignment: .leading, spacing: 1) {
-                TextField("Name", text: $name)
-                    .textFieldStyle(.plain)
-                    .fontWeight(.medium)
-                    .onChange(of: name) { _, now in set("name", now.isEmpty || now == account.defaultName ? nil : now) }
-                Text(account.from ?? "Claude")
+            VStack(alignment: .leading, spacing: 3) {
+                if editing {
+                    // Return or a click elsewhere keeps it, Esc doesn't. Emptied, it goes back to the short name ("Desktop").
+                    TextField("Name", text: $name, prompt: Text(account.defaultName))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.leading)
+                        .frame(width: 170)
+                        .focused($typing)
+                        .onAppear { typing = true }
+                        .onSubmit(keep)
+                        .onExitCommand { editing = false }
+                        .onChange(of: typing) { _, still in if !still { keep() } }
+                } else {
+                    HStack(spacing: 6) {
+                        Text(account.name)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                            .onTapGesture(count: 2, perform: edit)
+                        Button(action: edit) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 18, height: 18)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Rename this account")
+                        .accessibilityLabel("Rename \(account.name)")
+                    }
+                }
+                Text(Self.where(account))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
             }
-            Spacer()
+            Spacer(minLength: 8)
             if let left = account.left {
                 Text("\(left)%").monospacedDigit()
                 + Text(account.week?.left().map { " \u{00B7} week \($0)%" } ?? "").foregroundStyle(.secondary)
@@ -134,10 +167,35 @@ struct AccountRow: View {
                 .labelsHidden().toggleStyle(.switch).controlSize(.small)
         }
         .opacity(account.shown ? 1 : 0.5)
-        .onAppear { name = account.name }
+    }
+
+    private func edit() {
+        name = account.name
+        editing = true
+    }
+
+    private func keep() {
+        guard editing else { return }
+        editing = false
+        set("name", Self.custom(name, for: account))
+    }
+
+    /// What to save for a typed name: nothing when it's empty or just the short name again.
+    static func custom(_ typed: String, for account: Account) -> String? {
+        let name = typed.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty || name == account.defaultName ? nil : name
+    }
+
+    /// "Desktop app · you@work.com"
+    static func `where`(_ account: Account) -> String {
+        [account.from, account.email].compactMap { $0 }.joined(separator: " \u{00B7} ").nilIfEmpty ?? "Claude"
     }
 
     private func set(_ what: String, _ value: Any?) {
         UserDefaults.standard.set(value, forKey: "account.\(account.id).\(what)")
     }
+}
+
+extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

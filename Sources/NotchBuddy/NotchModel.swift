@@ -223,6 +223,8 @@ final class NotchModel {
     private(set) var accounts = Account.load()
     /// The account Claude Code in the Terminal is logged in to; Terminal sessions are on it.
     var terminalOrg: String? { didSet { if terminalOrg != oldValue { nameAccounts() } } }
+    /// Email addresses we've been told, by account. They're saved with the accounts.
+    @ObservationIgnored private var emails: [String: String] = [:]
     /// The account the desktop app's sessions run on, as the last one told us. Kept between launches.
     var desktopOrg: String? { didSet { if desktopOrg != oldValue { nameAccounts() } } }
     /// What got done today, for the empty notch.
@@ -547,6 +549,13 @@ final class NotchModel {
         }
     }
 
+    /// The Terminal's settings or a desktop app session said which email an account is logged in with.
+    func noteEmail(_ email: String?, for org: String?) {
+        guard let email, let org, !email.isEmpty, !org.isEmpty, emails[org] != email else { return }
+        emails[org] = email
+        nameAccounts()
+    }
+
     /// A desktop app session said which account it runs on.
     private func noteDesktop(_ org: String) {
         guard org != desktopOrg, !org.isEmpty else { return }
@@ -565,6 +574,7 @@ final class NotchModel {
             named[i].from = terminal && desktop ? Account.both
                 : terminal ? LoginUsage.Source.terminal.title : LoginUsage.Source.desktop.title
         }
+        for i in named.indices { if let email = emails[named[i].id] { named[i].email = email } }
         let taken = Set(named.filter(current).compactMap(\.from))
         for i in named.indices where !current(named[i]) {
             if let from = named[i].from, taken.contains(from) { named[i].from = nil }
@@ -741,6 +751,7 @@ final class NotchModel {
         if let org = event[Account.key] as? String {
             session.org = org
             if session.place.conversation != nil { noteDesktop(org) }
+            noteEmail(event[Account.emailKey] as? String, for: org)
         }
         session.heard = Date()
         if name == "StopFailure" {

@@ -160,7 +160,7 @@ struct NotchView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(model.rows.prefix(NotchModel.maxRows).enumerated()), id: \.element.id) { index, session in
                         SessionRow(session: session, color: model.color(of: session), now: time.date,
-                                   account: model.severalAccounts ? model.account(of: session).map { ($0.name, $0.color(among: model.accounts)) } : nil,
+                                   account: model.severalAccounts ? model.account(of: session).map { ($0.name, $0.color(among: model.accounts), $0.email) } : nil,
                                    expanded: model.hovered == session.id,
                                    details: session.details(shortcut: session.id == model.shortcutTarget?.id),
                                    answer: { choice in withAnimation { model.answer(session, choice) } },
@@ -283,7 +283,7 @@ struct SessionRow: View {
     let color: String
     let now: Date
     /// Its account's name and colour, when you have several.
-    var account: (name: String, color: String)? = nil
+    var account: (name: String, color: String, email: String?)? = nil
     /// The mouse is over it: show the whole command and the details line.
     let expanded: Bool
     /// Branch, lines changed, tests, pull request, server, cost: shown on hover.
@@ -311,7 +311,7 @@ struct SessionRow: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                         if let model = session.model { ModelBadge(name: model) }
-                        if let account { AccountChip(name: account.name, color: account.color) }
+                        if let account { AccountChip(name: account.name, color: account.color).help(account.email ?? account.name) }
                     }
                     HStack(spacing: 6) {
                         Text(session.notice?.word ?? session.summary ?? label)

@@ -226,6 +226,37 @@ struct AccountNameTests {
         #expect(name("home") == "Claude")
     }
 
+    @Test func accountsKnowTheirEmailAddress() throws {
+        defer { UserDefaults.standard.removeObject(forKey: "accounts") }
+        // The Terminal's settings file names its login.
+        let file = FileManager.default.temporaryDirectory.appending(path: "claude-\(UUID()).json")
+        try Data(#"{"oauthAccount": {"organizationUuid": "home", "emailAddress": "me@home.com"}}"#.utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let login = try #require(Account.terminalLogin(file: file))
+        model.terminalOrg = login.org
+        model.noteEmail(login.email, for: login.org)   // heard before the account has any usage
+        usage("home", from: "Terminal login")
+        #expect(model.accounts.first?.email == "me@home.com")
+        #expect(AccountRow.where(model.accounts[0]) == "Terminal login \u{00B7} me@home.com")
+        #expect(model.accounts[0].summary.hasPrefix("me@home.com"))
+
+        // A desktop app session says who it's logged in as.
+        usage("work", from: "Desktop app")
+        let tagged = Account.addingOrg(to: Data(#"{"hook_event_name":"UserPromptSubmit","session_id":"a","cwd":"/x/a"}"#.utf8),
+                                       environment: ["CLAUDE_CODE_ORGANIZATION_UUID": "work", "CLAUDE_CODE_USER_EMAIL": "me@work.com"])
+        model.handle(tagged)
+        #expect(model.accounts.first { $0.id == "work" }?.email == "me@work.com")
+        // Saved with the account, so it's there after a restart.
+        #expect(Account.load().first { $0.id == "work" }?.email == "me@work.com")
+    }
+
+    @Test func renamingAnAccount() {
+        let account = Account(id: "work", from: "Desktop app")
+        #expect(AccountRow.custom("  Metalab ", for: account) == "Metalab")
+        #expect(AccountRow.custom("", for: account) == nil)          // emptied: back to "Desktop"
+        #expect(AccountRow.custom("Desktop", for: account) == nil)   // the short name isn't a name of your own
+    }
+
     @Test func lastWeeksFigureDoesntKeepAnAccountAround() {
         defer { UserDefaults.standard.removeObject(forKey: "accounts") }
         model.terminalOrg = "home"

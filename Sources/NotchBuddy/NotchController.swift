@@ -104,14 +104,18 @@ final class NotchController {
         })
 
         model.onPeek = { [weak self] in self?.peek() }
-        model.terminalOrg = Account.terminalOrg()
+        let terminal = Account.terminalLogin()
+        model.terminalOrg = terminal?.org
+        model.noteEmail(terminal?.email, for: terminal?.org)
         model.desktopOrg = UserDefaults.standard.string(forKey: "desktopOrg")
         // You can log in to another account in the Terminal at any time.
         accountWatch = Task { [weak model] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 guard let model else { return }
-                if let org = await Task.detached(operation: { Account.terminalOrg() }).value { model.terminalOrg = org }
+                guard let login = await Task.detached(operation: { Account.terminalLogin() }).value else { continue }
+                model.terminalOrg = login.org
+                model.noteEmail(login.email, for: login.org)
             }
         }
         let checks = LoginUsage.Source.allCases.map(LoginUsage.init)
