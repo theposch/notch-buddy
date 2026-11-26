@@ -118,7 +118,7 @@ struct AccountRow: View {
                 TextField("Name", text: $name)
                     .textFieldStyle(.plain)
                     .fontWeight(.medium)
-                    .onChange(of: name) { _, now in set("name", now.isEmpty || now == account.from?.components(separatedBy: " ").first ? nil : now) }
+                    .onChange(of: name) { _, now in set("name", now.isEmpty || now == account.defaultName ? nil : now) }
                 Text(account.from ?? "Claude")
                     .font(.caption)
                     .foregroundStyle(.secondary)

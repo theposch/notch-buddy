@@ -57,6 +57,9 @@ final class LoginUsage {
         guard asking || (Date() >= waitUntil && Date().timeIntervalSince(lastTry) >= 20) else { return }
         lastTry = Date()
 
+        // Logged in to another account in the Terminal since: the login we kept is the old account's.
+        if source == .terminal, let kept = login, kept.org != Account.terminalOrg() { login = nil }
+
         if login == nil {
             // Off the main thread: macOS's prompt waits for you, and the notch shouldn't.
             switch source {

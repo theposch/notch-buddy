@@ -39,6 +39,7 @@ final class NotchController {
     private var watchers: [Any] = []
     private var listener: EventListener?
     private var updates: Task<Void, Never>?
+    private var accountWatch: Task<Void, Never>?
     private let settings = SettingsWindow()
     /// The welcome stays open until the mouse has been over it and left again.
     private var pinned = false
@@ -104,6 +105,15 @@ final class NotchController {
 
         model.onPeek = { [weak self] in self?.peek() }
         model.terminalOrg = Account.terminalOrg()
+        model.desktopOrg = UserDefaults.standard.string(forKey: "desktopOrg")
+        // You can log in to another account in the Terminal at any time.
+        accountWatch = Task { [weak model] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard let model else { return }
+                if let org = await Task.detached(operation: { Account.terminalOrg() }).value { model.terminalOrg = org }
+            }
+        }
         let checks = LoginUsage.Source.allCases.map(LoginUsage.init)
         for check in checks {
             check.onUsage = { [weak model, source = check.source] usage in
@@ -146,9 +156,12 @@ final class NotchController {
 
     /// Whether the mouse is over the black shape.
     private var mouseInside: Bool {
+        let mouse = NSEvent.mouseLocation
+        // This runs on every mouse move, anywhere. Away from the top of the screen there's nothing to measure.
+        guard panel.frame.insetBy(dx: 0, dy: -1).contains(mouse) else { return false }
         let size = model.isOpen ? model.openSize : model.closedSize
         // Grow the area by a point so the very top row of pixels counts too.
-        return topCentre(size).insetBy(dx: 0, dy: -1).contains(NSEvent.mouseLocation)
+        return topCentre(size).insetBy(dx: 0, dy: -1).contains(mouse)
     }
 
     private func mouseMoved() {

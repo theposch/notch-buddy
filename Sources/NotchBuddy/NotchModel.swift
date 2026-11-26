@@ -49,6 +49,11 @@ struct Session: Identifiable {
     var contextFromStatusLine = false
     /// True while Allow / Deny from the notch would still reach Claude.
     var canAnswer = false
+    /// The step it's asking to take (tool, and its input as text), to tell when that step has run.
+    var asked: (tool: String, input: Data?)?
+    /// Opened again (the desktop app reopens its conversations) or cleared by you, and idle since:
+    /// nothing to show until it does something.
+    var quiet = false
     /// Its own colour, used when the colour setting is "random".
     var color: String
     var place = Place()
@@ -86,6 +91,16 @@ struct Session: Identifiable {
         if let todos = work.todos { list.append(.todo("\(todos.done) of \(todos.total)" + (todos.current.map { " · \($0)" } ?? ""))) }
         if let cost { list.append(.cost(cost)) }
         return list
+    }
+
+    /// Whether it gets a row. Busy sessions always do. Idle ones don't when finished sessions
+    /// are hidden, and a quiet one doesn't until it does something.
+    func shows(hidingIdle: Bool) -> Bool {
+        switch state {
+        case .working, .waiting: true
+        case .done: !hidingIdle
+        case .ready: !hidingIdle && !quiet
+        }
     }
 
     /// Needs you, then working, then done.
@@ -192,13 +207,24 @@ enum DayPart {
 final class NotchModel {
     var geometry = NotchGeometry()
     var isOpen = false
-    private(set) var sessions: [Session] = []
+    /// Every session we've heard from, shown or not.
+    private(set) var all: [Session] = []
+    /// The ones with a row. Idle ones are left out when finished sessions are hidden (Settings).
+    var sessions: [Session] {
+        let hide = hidesIdle
+        return all.filter { $0.shows(hidingIdle: hide) }
+    }
+    /// "Finished sessions: Hide right away" in Settings. Tests choose for themselves.
+    var hideIdle: Bool?
+    private var hidesIdle: Bool { _ = prefs; return hideIdle ?? Prefs.hideFinished }
     /// The status word Clawd's page last told us ("Pondering…", "Needs you", …).
     var clawdWord = ""
     /// Each Claude account's 5-hour and weekly usage, from the status line or the logins.
     private(set) var accounts = Account.load()
     /// The account Claude Code in the Terminal is logged in to; Terminal sessions are on it.
-    var terminalOrg: String?
+    var terminalOrg: String? { didSet { if terminalOrg != oldValue { nameAccounts() } } }
+    /// The account the desktop app's sessions run on, as the last one told us. Kept between launches.
+    var desktopOrg: String? { didSet { if desktopOrg != oldValue { nameAccounts() } } }
     /// What got done today, for the empty notch.
     private(set) var today = Today.load()
     /// When we last heard from Claude Code at all.
@@ -237,13 +263,15 @@ final class NotchModel {
         timers.append(Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
-                self?.tidy()
+                guard let self else { return }
+                self.tidy()
             }
         })
         timers.append(Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
-                self?.lookUpPullRequests()
+                guard let self else { return }
+                self.lookUpPullRequests()
             }
         })
         timers.append(Task { [weak self] in
@@ -278,7 +306,7 @@ final class NotchModel {
     // MARK: Usage
 
     /// Accounts we know usage for, minus the ones you switched off.
-    var shownAccounts: [Account] { _ = prefs; return accounts.filter { $0.shown && ($0.usage != nil || $0.week != nil) } }
+    var shownAccounts: [Account] { _ = prefs; return accounts.filter { $0.shown && ($0.left != nil || $0.week?.left() != nil) } }
     var severalAccounts: Bool { shownAccounts.count > 1 }
 
     func org(of session: Session) -> String { session.org ?? terminalOrg ?? "" }
@@ -491,11 +519,13 @@ final class NotchModel {
     /// The 5-hour and weekly usage of one account, from the status line or a login.
     /// The account is the one the event names, else its session's, else the Terminal login's.
     func takeUsage(_ event: [String: Any]) {
-        let session = (event["session_id"] as? String).flatMap { id in sessions.first { $0.id == id } }
+        let session = (event["session_id"] as? String).flatMap { id in all.first { $0.id == id } }
         let id = event[Account.key] as? String ?? session.map(org(of:)) ?? terminalOrg ?? ""
         if id != "" { accounts.removeAll { $0.id == "" } }   // heard before we knew whose it was
         var account = accounts.first { $0.id == id } ?? Account(id: id)
-        if account.from == nil, let from = event["from"] as? String { account.from = from }   // first one names it
+        // Whoever reported it last says where it's logged in (you may have switched accounts since).
+        let from = event["from"] as? String
+        if let from { account.from = from }
         var droppedTo: Int?
         if let used = event["used_percentage"] as? Double, let resets = event["resets_at"] as? Double {
             let before = account.left ?? 100
@@ -507,10 +537,56 @@ final class NotchModel {
         }
         if let i = accounts.firstIndex(where: { $0.id == id }) { accounts[i] = account } else { accounts.append(account) }
         Account.save(accounts)
+        if from == LoginUsage.Source.desktop.title { noteDesktop(id) }
+        nameAccounts()
         // Just dropped under your limit: one soft sound and a message (Clawd starts sweating by himself).
         if let left = droppedTo {
             if live { Prefs.play(.usageLow) }
-            post([Notice(kind: .usageLow, word: severalAccounts ? "\(account.name) \(left)% left" : "\(left)% left")], for: nil)
+            let name = accounts.first { $0.id == id }?.name ?? account.name
+            post([Notice(kind: .usageLow, word: severalAccounts ? "\(name) \(left)% left" : "\(left)% left")], for: nil)
+        }
+    }
+
+    /// A desktop app session said which account it runs on.
+    private func noteDesktop(_ org: String) {
+        guard org != desktopOrg, !org.isEmpty else { return }
+        desktopOrg = org
+        if live { UserDefaults.standard.set(org, forKey: "desktopOrg") }
+    }
+
+    /// Says where each account is logged in right now ("Terminal login", "Desktop app"), so its
+    /// name stays true when you switch accounts. An account that's logged in nowhere any more
+    /// doesn't keep a label that now belongs to another one.
+    private func nameAccounts() {
+        var named = accounts
+        func current(_ account: Account) -> Bool { account.id != "" && (account.id == terminalOrg || account.id == desktopOrg) }
+        for i in named.indices where current(named[i]) {
+            let (terminal, desktop) = (named[i].id == terminalOrg, named[i].id == desktopOrg)
+            named[i].from = terminal && desktop ? Account.both
+                : terminal ? LoginUsage.Source.terminal.title : LoginUsage.Source.desktop.title
+        }
+        let taken = Set(named.filter(current).compactMap(\.from))
+        for i in named.indices where !current(named[i]) {
+            if let from = named[i].from, taken.contains(from) { named[i].from = nil }
+        }
+        guard named != accounts else { return }
+        accounts = named
+        Account.save(accounts)
+    }
+
+    /// What one of Claude's notifications means for its row.
+    enum Nudge { case needsYou, idle, nothing }
+
+    /// Claude sends notifications for many things. Only a few mean it's stuck until you answer;
+    /// "waiting for your input" means its turn is over; the rest (signed in, a helper finished) aren't news for a row.
+    static func nudge(_ event: [String: Any]) -> Nudge {
+        let message = (event["message"] as? String ?? "").lowercased()
+        switch event["notification_type"] as? String {
+        case "permission_prompt", "elicitation_dialog", "elicitation_url_dialog", "agent_needs_input": return .needsYou
+        case "idle_prompt": return .idle
+        case .some: return .nothing
+        // Older versions of Claude don't say which kind; go by the words.
+        case nil: return message.contains("waiting for your input") ? .idle : .needsYou
         }
     }
 
@@ -524,14 +600,14 @@ final class NotchModel {
                 LoginUsage.log.notice("usage from the status line: \(String(describing: used), privacy: .public)% used")
             }
             takeUsage(event)
-            if let id = event["session_id"] as? String, let i = sessions.firstIndex(where: { $0.id == id }) {
-                let before = sessions[i]
-                defer { post(Notice.spot(before, sessions[i], event: name, named: sessions.count > 1), for: id) }
+            if let id = event["session_id"] as? String, let i = all.firstIndex(where: { $0.id == id }) {
+                let before = all[i]
+                defer { post(Notice.spot(before, all[i], event: name, named: sessions.count > 1), for: id) }
                 if let used = event["context_used"] as? Double {
-                    sessions[i].context = min(100, max(0, Int(used.rounded())))
-                    sessions[i].contextFromStatusLine = true
+                    all[i].context = min(100, max(0, Int(used.rounded())))
+                    all[i].contextFromStatusLine = true
                 }
-                if let cost = event["cost"] as? Double { sessions[i].cost = cost }
+                if let cost = event["cost"] as? Double { all[i].cost = cost }
             }
             return
         }
@@ -541,30 +617,46 @@ final class NotchModel {
 
         // Helpers starting and stopping only change the "+2" on Clawd.
         if name == "SubagentStart" || name == "SubagentStop" {
-            if let i = sessions.firstIndex(where: { $0.id == id }) {
-                let before = sessions[i]
-                sessions[i].work.note(name, tool: "", event: event)
-                post(Notice.spot(before, sessions[i], event: name, named: sessions.count > 1), for: id)
+            if let i = all.firstIndex(where: { $0.id == id }) {
+                let before = all[i]
+                all[i].work.note(name, tool: "", event: event)
+                all[i].heard = Date()
+                post(Notice.spot(before, all[i], event: name, named: sessions.count > 1), for: id)
             }
             reply?.cancel()
             return
         }
 
-        // Anything that happens next means an open request was answered elsewhere.
+        // Claude runs several tools at once, and its helpers run their own. While a request is
+        // still open (its helper holds the line), those coming and going don't answer it:
+        // only the asked step itself running does.
+        if ["PreToolUse", "PostToolUse", "PostToolUseFailure"].contains(name), replies[id] != nil,
+           let i = all.firstIndex(where: { $0.id == id }), all[i].state == .waiting,
+           name == "PreToolUse" || !Self.isAsked(all[i].asked, tool: tool, input: event["tool_input"]) {
+            let before = all[i]
+            all[i].work.note(name, tool: tool ?? "", event: event)
+            all[i].heard = Date()
+            count(all[i], before: before)
+            post(Notice.spot(before, all[i], event: name, named: sessions.count > 1), for: id)
+            reply?.cancel()
+            return
+        }
+
+        // Anything else that happens next means an open request was answered elsewhere.
         // (A Notification is just Claude reminding you, so it doesn't count.)
         if name != "Notification" { dropReply(for: id) }
 
         if name == "SessionEnd" {
             // Ended while Claude was still on it: you stopped it.
-            if let gone = sessions.first(where: { $0.id == id }), gone.state == .working || gone.state == .waiting {
+            if let gone = all.first(where: { $0.id == id }), gone.state == .working || gone.state == .waiting {
                 let named = sessions.count > 1
                 post([Notice(kind: .stopped, word: named ? "\(Notice.short(gone.name)) stopped" : "Stopped")], for: nil)
             }
-            sessions.removeAll { $0.id == id }
+            all.removeAll { $0.id == id }
             showNext()
             return
         }
-        let current = sessions.first { $0.id == id }
+        let current = all.first { $0.id == id }
         var next: Session.State
         var summary: String?
         var detail: String?
@@ -590,17 +682,26 @@ final class NotchModel {
             always = Permission.alwaysText(event)
             plan = tool == "ExitPlanMode"
         case "Notification":
-            // "Waiting for your input" after a finished turn: done already says that.
-            let idle = (event["notification_type"] as? String) == "idle_prompt"
-                || ((event["message"] as? String) ?? "").contains("waiting for your input")
-            next = idle && (current?.state == .done || current?.state == .ready) ? current!.state : .waiting
+            switch Self.nudge(event) {
+            case .needsYou:
+                next = .waiting
+            case .idle:
+                // "Waiting for your input": its turn is over. Done already says that; one we thought
+                // was still working was stopped without telling us. One we don't know has nothing to show.
+                guard let current else { reply?.cancel(); return }
+                next = current.state == .working ? .ready : current.state
+            case .nothing:
+                guard let current else { reply?.cancel(); return }
+                next = current.state
+            }
             (summary, detail, always) = (current?.summary, current?.detail, current?.always)
         case "Stop", "StopFailure":
             next = .done
         case "PreCompact":
             // Claude is making room in the conversation; nothing else changes.
-            next = current?.state ?? .working
-            (summary, detail, always) = (current?.summary, current?.detail, current?.always)
+            guard let current else { reply?.cancel(); return }
+            next = current.state
+            (summary, detail, always) = (current.summary, current.detail, current.always)
         default:
             reply?.cancel()
             return
@@ -609,8 +710,19 @@ final class NotchModel {
         var session = current ?? Session(id: id, folder: folder, state: .ready,
                                           color: Prefs.pickColor(avoiding: sessions.map(\.color)))
         let was = current?.state
+        // Opened again, not started: the desktop app does this to every conversation when it
+        // launches. Not worth a row until it does something.
+        if current == nil, name == "SessionStart", (event["source"] as? String ?? "startup") != "startup" { session.quiet = true }
+        if next == .working || next == .waiting { session.quiet = false }
+        if name == "PermissionRequest" {
+            let input = event["tool_input"] as? [String: Any] ?? [:]
+            session.asked = (tool ?? "", try? JSONSerialization.data(withJSONObject: input, options: [.sortedKeys]))
+        } else if next != .waiting { session.asked = nil }
         session.folder = folder
+        // A notification has no folder with it; keep the one we know.
+        if event["cwd"] == nil, let known = current?.folder { session.folder = known }
         session.place = Place(event: event)
+        if session.place.folder == nil { session.place.folder = current?.place.folder }
         if next != session.state { session.changed = Date() }
         if next == .working || next == .waiting { session.workingSince = session.workingSince ?? Date() }
         else { session.workingSince = nil }
@@ -626,7 +738,10 @@ final class NotchModel {
         if let branch { session.branch = branch }
         if let id = (event[ModelName.key] ?? event["model"]) as? String, let model = ModelName.short(id) { session.model = model }
         if let title = event[ConversationSize.titleKey] as? String { session.title = title }
-        if let org = event[Account.key] as? String { session.org = org }
+        if let org = event[Account.key] as? String {
+            session.org = org
+            if session.place.conversation != nil { noteDesktop(org) }
+        }
         session.heard = Date()
         if name == "StopFailure" {
             session.problem = Notice.problem(event["error"] as? String ?? event["error_type"] as? String ?? event["reason"] as? String)
@@ -656,10 +771,17 @@ final class NotchModel {
             onDone?()
             celebrate()
             if live { Prefs.play(.finished) }
-            if Prefs.hideFinished { sessions.removeAll { $0.id == session.id }; return }
         }
-        if let i = sessions.firstIndex(where: { $0.id == session.id }) { sessions[i] = session }
-        else { sessions.append(session) }
+        if let i = all.firstIndex(where: { $0.id == session.id }) { all[i] = session }
+        else { all.append(session) }
+    }
+
+    /// True when a tool that just ran is the step a session was asking to take.
+    static func isAsked(_ asked: (tool: String, input: Data?)?, tool: String?, input: Any?) -> Bool {
+        guard let asked else { return true }   // we don't know what it asked: anything running answers it
+        guard asked.tool == tool else { return false }
+        let ran = try? JSONSerialization.data(withJSONObject: input as? [String: Any] ?? [:], options: [.sortedKeys])
+        return asked.input == nil || ran == asked.input
     }
 
     // MARK: The example
@@ -677,12 +799,12 @@ final class NotchModel {
                 try? await Task.sleep(for: .seconds(2))
                 if Task.isCancelled { return }
             }
-            withAnimation { self?.sessions.removeAll { $0.id == Self.exampleID } }
+            withAnimation { self?.all.removeAll { $0.id == Self.exampleID } }
         }
     }
 
     private func showExample(_ state: Session.State, summary: String?) {
-        let current = sessions.first { $0.id == Self.exampleID }
+        let current = all.first { $0.id == Self.exampleID }
         var example = current ?? Session(id: Self.exampleID, folder: "Example", state: .ready,
                                          color: Prefs.pickColor(avoiding: sessions.map(\.color)))
         example.state = state
@@ -696,14 +818,16 @@ final class NotchModel {
     /// Allow, Always allow or Deny, clicked in the notch.
     func answer(_ session: Session, _ answer: Answer) {
         guard let reply = replies.removeValue(forKey: session.id),
-              let i = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+              let i = all.firstIndex(where: { $0.id == session.id }) else { return }
         reply.send(answer.rawValue)
-        sessions[i].state = .working
-        sessions[i].summary = nil
-        sessions[i].detail = nil
-        sessions[i].always = nil
-        sessions[i].canAnswer = false
-        sessions[i].changed = Date()
+        all[i].state = .working
+        all[i].summary = nil
+        all[i].detail = nil
+        all[i].always = nil
+        all[i].asked = nil
+        all[i].canAnswer = false
+        all[i].changed = Date()
+        all[i].heard = Date()
         showNext()
     }
 
@@ -711,12 +835,12 @@ final class NotchModel {
     func replyGone(_ reply: Reply) {
         guard let id = replies.first(where: { $0.value === reply })?.key else { return }
         replies[id] = nil
-        if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].canAnswer = false }
+        if let i = all.firstIndex(where: { $0.id == id }) { all[i].canAnswer = false }
     }
 
     private func dropReply(for id: String) {
         replies.removeValue(forKey: id)?.cancel()
-        if let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].canAnswer = false }
+        if let i = all.firstIndex(where: { $0.id == id }) { all[i].canAnswer = false }
     }
 
     // MARK: Tidying up
@@ -734,15 +858,28 @@ final class NotchModel {
             accounts[i].usage = nil
             Account.save(accounts)
         }
-        for session in sessions where session.id != Self.exampleID {
-            if let pid = session.place.pid, !isRunning(pid) {
+        // Last week's figure says nothing about this week.
+        for i in accounts.indices {
+            guard let week = accounts[i].week, now >= week.resets else { continue }
+            accounts[i].week = nil
+            Account.save(accounts)
+        }
+        // An account with nothing left to show that isn't logged in anywhere: you've switched away from it.
+        let before = accounts.count
+        accounts.removeAll { $0.usage == nil && $0.week == nil && $0.id != terminalOrg && $0.id != desktopOrg }
+        if accounts.count != before { Account.save(accounts) }
+
+        let hidingIdle = hidesIdle
+        for session in all where session.id != Self.exampleID {
+            let forgotten = !session.shows(hidingIdle: hidingIdle) && now.timeIntervalSince(session.heard) > 12 * 3600
+            if forgotten || session.place.pid.map({ !isRunning($0) }) ?? false {
                 dropReply(for: session.id)
-                withAnimation { sessions.removeAll { $0.id == session.id } }
+                withAnimation { all.removeAll { $0.id == session.id } }
             } else if session.state == .working, now.timeIntervalSince(session.heard) > 30 * 60,
-                      let i = sessions.firstIndex(where: { $0.id == session.id }) {
-                sessions[i].state = .ready
-                sessions[i].changed = now
-                sessions[i].workingSince = nil
+                      let i = all.firstIndex(where: { $0.id == session.id }) {
+                all[i].state = .ready
+                all[i].changed = now
+                all[i].workingSince = nil
             }
         }
     }
@@ -755,13 +892,29 @@ final class NotchModel {
     func open(_ session: Session) {
         guard session.id != Self.exampleID else { return }
         session.place.go()
-        if session.state == .done { sessions.removeAll { $0.id == session.id } }
+        if session.state == .done { hide(session) }
     }
 
     /// "Clear from the list" in a row's menu.
     func clear(_ session: Session) {
         dropReply(for: session.id)
-        sessions.removeAll { $0.id == session.id }
+        hide(session)
+        showNext()
+    }
+
+    /// Takes a session's row away but remembers the session (its colour, what it has done),
+    /// so it's the same one when it comes back to work.
+    private func hide(_ session: Session) {
+        guard let i = all.firstIndex(where: { $0.id == session.id }) else { return }
+        all[i].state = .ready
+        all[i].quiet = true
+        all[i].summary = nil
+        all[i].detail = nil
+        all[i].always = nil
+        all[i].asked = nil
+        all[i].plan = false
+        all[i].workingSince = nil
+        all[i].changed = Date()
     }
 
     /// Adds a session's latest to today's figures.
@@ -786,9 +939,9 @@ final class NotchModel {
                 let pr = await PullRequest.look(in: folder)
                 guard let self else { return }
                 var news: (Notice, String)?
-                for i in self.sessions.indices where self.sessions[i].place.folder == folder && self.sessions[i].pr != pr {
-                    if news == nil, let notice = Notice.spot(self.sessions[i].pr, pr) { news = (notice, self.sessions[i].id) }
-                    withAnimation { self.sessions[i].pr = pr }
+                for i in self.all.indices where self.all[i].place.folder == folder && self.all[i].pr != pr {
+                    if news == nil, let notice = Notice.spot(self.all[i].pr, pr) { news = (notice, self.all[i].id) }
+                    withAnimation { self.all[i].pr = pr }
                 }
                 if let (notice, id) = news { self.post([notice], for: id) }
             }
@@ -804,14 +957,14 @@ final class NotchModel {
         guard id != Self.exampleID else { return }
         for notice in notices {
             withAnimation(.snappy) {
-                if let id, let i = sessions.firstIndex(where: { $0.id == id }) { sessions[i].notice = notice }
+                if let id, let i = all.firstIndex(where: { $0.id == id }) { all[i].notice = notice }
                 if Prefs.celebrations, notice.animation != nil { reaction = notice }
             }
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Notice.seconds))
                 guard let self else { return }
                 withAnimation(.snappy) {
-                    for i in self.sessions.indices where self.sessions[i].notice?.id == notice.id { self.sessions[i].notice = nil }
+                    for i in self.all.indices where self.all[i].notice?.id == notice.id { self.all[i].notice = nil }
                 }
             }
             guard Prefs.shows(notice.kind) else { continue }

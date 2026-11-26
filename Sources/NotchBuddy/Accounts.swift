@@ -6,7 +6,7 @@ struct Account: Codable, Equatable, Identifiable {
     var id: String
     var usage: Usage?
     var week: Usage?
-    /// Where we heard about it: "Terminal login", "Desktop app".
+    /// Where it's logged in right now, as far as we know: "Terminal login", "Desktop app".
     var from: String?
 
     var left: Int? { usage?.left() }
@@ -23,9 +23,17 @@ struct Account: Codable, Equatable, Identifiable {
 
     static let colors = ["#D97757", "#7FB3E0", "#B48AE0", "#8FBF6A"]
 
-    /// Your name for it, else a short one from where it came from: "Terminal", "Desktop".
+    /// What `from` says for an account that both the Terminal and the desktop app are logged in to.
+    static let both = "Terminal and desktop app"
+
+    /// A short name from where it's logged in: "Terminal", "Desktop". "Claude" when that's both or unknown.
+    var defaultName: String {
+        from == Self.both ? "Claude" : from?.components(separatedBy: " ").first ?? "Claude"
+    }
+
+    /// Your name for it, else the short one.
     var name: String {
-        UserDefaults.standard.string(forKey: "account.\(id).name") ?? from?.components(separatedBy: " ").first ?? "Claude"
+        UserDefaults.standard.string(forKey: "account.\(id).name") ?? defaultName
     }
 
     func color(among all: [Account]) -> String {
